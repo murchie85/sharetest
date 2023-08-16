@@ -124,3 +124,41 @@ public void testPutRecordFailure() {
 ```
 
 In these examples, the `mock()` and related methods are from the Mockito framework, which is widely used in the Java ecosystem for creating mock objects in unit tests. Remember to include necessary dependencies when trying to use Mockito or any other testing frameworks.
+
+
+
+```java
+public class SimpleProducer {
+    private final KinesisClient kinesisClient;
+
+    public SimpleProducer(KinesisClient kinesisClient) {
+        this.kinesisClient = kinesisClient;
+    }
+
+    public void sendData(String data) {
+        if (data.matches("-?\\d+")) { // regex check for integers
+            throw new IllegalArgumentException("Integers are not allowed as data.");
+        }
+        kinesisClient.putRecord(PutRecordRequest.builder()
+                                                .data(SdkBytes.fromUtf8String(data))
+                                                .partitionKey("someKey")
+                                                .streamName("myStream")
+                                                .build());
+    }
+}
+
+```
+
+In the above code, there is a a check using a regex pattern (-?\\d+) to identify if the provided string is an integer (negative or positive). If an integer is detected, an IllegalArgumentException is thrown.
+
+```java
+@Test
+public void testSendDataThrowsExceptionOnIntInput() {
+    KinesisClient mockClient = mock(KinesisClient.class);
+
+    SimpleProducer producer = new SimpleProducer(mockClient);
+
+    assertThrows(IllegalArgumentException.class, () -> producer.sendData("12345"));
+}
+
+```
