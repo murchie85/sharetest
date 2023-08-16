@@ -162,3 +162,34 @@ public void testSendDataThrowsExceptionOnIntInput() {
 }
 
 ```
+
+
+## Edge Case: Sending a Record with a Maximum Allowed Size
+
+Kinesis has a maximum size limit for each record you send (at the time of my last update, this was 1 MB for a single record). An edge case test would involve trying to send a record of exactly that size and ensuring it's handled correctly.  
+
+
+```java
+@Test
+public void testSendMaxSizeRecord() {
+    KinesisClient mockClient = mock(KinesisClient.class);
+    SimpleProducer producer = new SimpleProducer(mockClient);
+
+    // Creating a data string that's very close to the limit.
+    // Note: This is a naive way; the real size includes more than just the data due to 
+    // metadata and other parts of the request, but for the sake of this example, it works.
+    byte[] almostMaxSizeData = new byte[(1024 * 1024) - 1]; // 1 MB minus 1 byte
+    Arrays.fill(almostMaxSizeData, (byte) 'A');
+    String testData = new String(almostMaxSizeData, StandardCharsets.UTF_8);
+
+    producer.sendData(testData);
+
+    // Verify that the mockClient's putRecord method was called with our large data
+    verify(mockClient).putRecord(argThat(request -> 
+        Arrays.equals(request.data().asByteArray(), almostMaxSizeData)
+    ));
+}
+
+```
+
+This test checks whether the producer can handle sending a record that's very close to the maximum size limit. Depending on how SimpleProducer and KinesisClient are implemented, this could help catch issues related to buffering, memory management, or request handling.
