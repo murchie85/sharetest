@@ -193,3 +193,21 @@ public void testSendMaxSizeRecord() {
 ```
 
 This test checks whether the producer can handle sending a record that's very close to the maximum size limit. Depending on how SimpleProducer and KinesisClient are implemented, this could help catch issues related to buffering, memory management, or request handling.
+
+
+
+
+Below is a table of mock tests (often referred to as "smoke tests") for the `software.amazon.awssdk.services.kinesis`. This table will outline high-level test scenarios you might run into with `Kinesis`. These tests are more on the functional/integration testing side, but they're critical initial tests to verify basic functionality.
+
+Note: These test scenarios are just hypothetical for the purpose of illustrating the table's structure. The "ACTUAL RESULT" and "STATUS" columns would be filled in during or after test execution.
+
+| TI.ID | TEST SCENARIOS                          | DESCRIPTION                                                         | TEST STEP                                                                   | EXPECTED RESULT                            | ACTUAL RESULT | STATUS |
+|-------|----------------------------------------|---------------------------------------------------------------------|----------------------------------------------------------------------------|--------------------------------------------|----------------|--------|
+| 001   | Put Record Success                      | Verify that a record can be put into a Kinesis stream.              | 1. Create `PutRecordRequest`. <br> 2. Call `putRecord` on `KinesisClient`. | Record is accepted and sequence number returned. |                |        |
+| 002   | Get Record Success                      | Fetch a record from Kinesis stream.                                 | 1. Put a record into the stream. <br> 2. Retrieve record using `getRecord`.  | Record data matches the data that was put into the stream. | |        |
+| 003   | Handle Oversized Record                 | Ensure that records exceeding the size limit are handled correctly. | 1. Create an oversized `PutRecordRequest`. <br> 2. Call `putRecord`.        | Receive an error indicating that the record is too large. |                |        |
+| 004   | Invalid Stream Name                     | Use an invalid stream name and ensure the error is captured.        | 1. Create `PutRecordRequest` with invalid stream name. <br> 2. Call `putRecord`. | Receive an error indicating invalid stream name. |                |        |
+| 005   | Put Record with No Data                 | Try to send a record without any data.                              | 1. Create `PutRecordRequest` without data. <br> 2. Call `putRecord`.       | Receive an error indicating missing data.   |                |        |
+| 006   | Create and Delete Stream                | Test the creation and deletion of a Kinesis stream.                 | 1. Call `createStream`. <br> 2. Call `deleteStream`.                       | Stream is created and then successfully deleted. |                |        |
+
+This table is a high-level representation. In real testing scenarios, you'd likely have more detailed test steps, prerequisites, postconditions, etc. Also, while these tests can be run against a real environment, in the context of "smock" or "smoke" tests, you might want to have a mock or stubbed version of the `KinesisClient` to speed up the execution and avoid costs or side effects.
