@@ -1,4 +1,47 @@
+# DEVOPS PKI
 
+
+Sure! Here is a list of interview questions and answers related to PKI (Public Key Infrastructure) and the DevOps aspect of it:
+
+1. What is PKI?
+   - PKI stands for Public Key Infrastructure. It is a framework and set of services that provide secure communication and authentication using public key cryptography.
+
+2. What are the components of PKI?
+   - The components of PKI include a certificate authority (CA), registration authority (RA), certificate revocation list (CRL), and digital certificates.
+
+3. How does PKI ensure security in communication?
+   - PKI ensures security in communication by using asymmetric encryption. It involves the use of public and private key pairs, where the public key is used for encryption and the private key is used for decryption.
+
+4. What is the role of a certificate authority (CA) in PKI?
+   - A certificate authority is responsible for issuing and managing digital certificates. It verifies the identity of individuals or entities and signs their certificates to establish trust.
+
+5. How does certificate revocation work in PKI?
+   - Certificate revocation is the process of invalidating a digital certificate before its expiration date. It is done when a certificate is compromised, expired, or no longer valid. Certificate revocation lists (CRLs) or online certificate status protocol (OCSP) are used to check the revocation status of certificates.
+
+6. How can PKI be integrated into DevOps processes?
+   - PKI can be integrated into DevOps processes by automating the certificate management and deployment using tools like HashiCorp Vault or Let's Encrypt. This ensures secure communication between different components of the DevOps infrastructure.
+
+7. What are the challenges in implementing PKI in a DevOps environment?
+   - Some challenges in implementing PKI in a DevOps environment include managing a large number of certificates, automating certificate renewal, ensuring secure key storage, and integrating PKI with existing DevOps tools and processes.
+
+8. How can you ensure the security of private keys in a DevOps environment?
+   - To ensure the security of private keys in a DevOps environment, best practices include using hardware security modules (HSMs) for key storage, implementing strong access controls, and regularly rotating keys.
+
+9. How can you automate the certificate renewal process in a DevOps environment?
+   - Certificate renewal can be automated by using tools like Let's Encrypt, which provide automated certificate issuance and renewal through APIs. Additionally, configuration management tools like Ansible or Puppet can be used to automate the renewal process.
+
+10. How can you monitor and manage the health of a PKI infrastructure in a DevOps environment?
+    - Monitoring and managing the health of a PKI infrastructure in a DevOps environment can be done by implementing logging and monitoring solutions, setting up alerts for certificate expirations or revocations, and regularly reviewing the certificate infrastructure for vulnerabilities.
+
+Remember to tailor your answers to your own experience and knowledge. Good luck with your interview!
+
+Citations:
+[1] https://allabouttesting.org/interview-questions-digital-certificate-pki/
+[2] https://www.isaca.org/resources/news-and-trends/industry-news/2019/10-questions-and-answers-when-deploying-a-pki
+[3] https://www.scribd.com/doc/169967354/PKI-Interview-Questions
+[4] https://youtube.com/watch?v=CD1mQXyPOuY
+[5] https://indeed-id.com/blog/interview-cms-expert-answers-the-most-tricky-pki-questions/
+[6] https://www.glassdoor.com/Interview/pki-interview-questions-SRCH_KO0,3.htm
 
 ## Can you give me all terms related to PKI for a cheatsheet, include things like the lifecycle steps, csr, hsm, Ca, Ra, Crl, keychain, rsa, dsa, ecc, PA. Also keyfactor and devops considerations
 
