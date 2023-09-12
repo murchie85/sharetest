@@ -1,3 +1,12 @@
+# My answers
+
+- Generate monitoring solutions to get oversite of full estate
+  - whats up for renewal
+  - unknowns
+- Managing outages
+- There is a huge lack of expertise in PKI management
+
+
 # DEVOPS PKI
 
 
