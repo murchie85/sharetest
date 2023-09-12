@@ -47,3 +47,13 @@ public class SQSMessageListenerTest {
 }
 
 ```
+
+```java
+doAnswer(new Answer<Void>() {
+    @Override
+    public Void answer(InvocationOnMock invocation) throws Throwable {
+        throw new Exception("Mock exception");
+    }
+}).when(routerService).processS3Object(jsonObject);
+
+```
