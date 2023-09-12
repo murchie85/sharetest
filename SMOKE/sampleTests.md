@@ -49,38 +49,9 @@ public class SQSMessageListenerTest {
 ```
 
 ```java
-import org.junit.jupiter.api.Assertions;
-
-@Test
-public void testOnMessage_withException() {
-    Message<Object> message = mock(Message.class);
-    
-    JSONObject jsonObject = null;
-    try {
-        jsonObject = new JSONObject("{\"key\":\"value\"}");
-    } catch (Exception e) {
-        fail("Failed to create JSONObject");
-    }
-
-    // Asserting that jsonObject is not null
-    Assertions.assertNotNull(jsonObject, "JSONObject should not be null");
-    
-    when(message.getPayload()).thenReturn(jsonObject);
-    
-    doAnswer(invocation -> {
-        throw new Exception("Mock exception");
-    }).when(routerService).processS3Object(jsonObject);
-
-    sqsMessageListener.onMessage(message);
-
-    try {
-        verify(routerService, times(1)).processS3Object(jsonObject);
-    } catch (Exception e) {
-        // This block will be executed if the exception is thrown.
-        // You can optionally assert something here if needed.
-    }
-
-    // Additional assertions or verifications can be made here.
-}
+ArgumentCaptor<JSONObject> argument = ArgumentCaptor.forClass(JSONObject.class);
+verify(routerService, times(1)).processS3Object(argument.capture());
+JSONObject actualJsonObject = argument.getValue();
+// Now, assert against the actualJsonObject or print it out to see the content.
 
 ```
