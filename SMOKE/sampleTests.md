@@ -55,3 +55,57 @@ JSONObject actualJsonObject = argument.getValue();
 // Now, assert against the actualJsonObject or print it out to see the content.
 
 ```
+
+
+```java
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
+
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class AWSAuthenticationTest {
+
+    @InjectMocks
+    private AWSAuthentication awsAuthentication;
+
+    @Mock
+    private AwsAuthProperties authProperties;
+
+    @Mock
+    private AWSConfiguration awsHttpClientConfig;
+
+    @Mock
+    private StsClient stsClient;
+
+    @BeforeEach
+    void setUp() {
+        when(awsAuthentication.getStsClient()).thenReturn(stsClient);
+    }
+
+    @Test
+    void testInit() {
+        // Given
+        Map<String, String> coreAccounts = new HashMap<>();
+        coreAccounts.put("testAccount", "testName");
+        when(authProperties.getCoreAccounts()).thenReturn(coreAccounts);
+        when(stsClient.getCallerIdentity()).thenReturn(GetCallerIdentityResponse.builder().arn("testArn").build());
+
+        // When
+        awsAuthentication.init();
+
+        // Then
+        verify(authProperties, times(1)).getCoreAccounts();
+        verify(stsClient, times(1)).getCallerIdentity();
+    }
+    
+    // Add more tests for other methods
+}
+
+```
