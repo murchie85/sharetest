@@ -109,3 +109,36 @@ class AWSAuthenticationTest {
 }
 
 ```
+
+
+```
+
+    @BeforeEach
+    void setUp() {
+        when(awsAuthentication.getDefaultAwsCredentialsProvider()).thenReturn(defaultAwsCredentialsProvider);
+        when(awsHttpClientConfig.httpClient(anyInt())).thenReturn(apacheHttpClientBuilder);
+        when(apacheHttpClientBuilder.build()).thenReturn(mock(ApacheHttpClient.class));
+        when(StsClient.builder()
+                       .credentialsProvider(defaultAwsCredentialsProvider)
+                       .region(Region.US_EAST_1)
+                       .httpClientBuilder(apacheHttpClientBuilder)
+                       .build()).thenReturn(stsClient);
+    }
+
+    @Test
+    void testInit() {
+        // Given
+        Map<String, String> coreAccounts = new HashMap<>();
+        coreAccounts.put("testAccount", "testName");
+        when(authProperties.getCoreAccounts()).thenReturn(coreAccounts);
+        when(stsClient.getCallerIdentity()).thenReturn(GetCallerIdentityResponse.builder().arn("testArn").build());
+
+        // When
+        awsAuthentication.init();
+
+        // Then
+        verify(authProperties, times(1)).getCoreAccounts();
+        verify(stsClient, times(1)).getCallerIdentity();
+    }
+
+```
