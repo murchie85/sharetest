@@ -141,4 +141,25 @@ class AWSAuthenticationTest {
         verify(stsClient, times(1)).getCallerIdentity();
     }
 
+
+
+
+
+
+@BeforeEach
+void setUp() {
+    // Given we're not mocking the behavior of getDefaultAwsCredentialsProvider() 
+    // from awsAuthentication, we just setup its return type's behavior.
+    when(awsHttpClientConfig.httpClient(anyInt())).thenReturn(apacheHttpClientBuilder);
+    when(apacheHttpClientBuilder.build()).thenReturn(mock(ApacheHttpClient.class));
+    
+    // This is the tricky part: since StsClient.builder() is a static method and returns 
+    // an actual builder, you need to ensure that the real builder's methods return 
+    // your mocks or else the .build() method will give null or unexpected results. 
+    // Mocking static methods like this can be complex. You might consider 
+    // refactoring your design to make it more test-friendly, or use tools like PowerMock.
+    when(StsClient.builder()).thenReturn(mock(StsClient.Builder.class, RETURNS_DEEP_STUBS)); // deep stubs
+}
+
+
 ```
