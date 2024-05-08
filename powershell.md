@@ -3,14 +3,15 @@
 $CLIENT_ID = 'your_client_id'
 $CLIENT_SECRET = 'your_client_secret'
 
-# Base64 encode the client ID and secret
-$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$CLIENT_ID:$CLIENT_SECRET"))
+# Encode the client ID and secret into Base64 to prepare for HTTP Basic Authentication
+$credentials = "$CLIENT_ID:$CLIENT_SECRET"
+$encodedCredentials = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($credentials))
 
 # Create headers with Basic Authentication
-$headers = @{ Authorization = "Basic $base64AuthInfo" }
+$headers = @{ Authorization = "Basic $encodedCredentials" }
 
 # Data to be sent in the body of the POST request
-$body = @{ 
+$body = @{
     scope = 'openid'
     grant_type = 'client_credentials'
 }
@@ -18,9 +19,10 @@ $body = @{
 # Endpoint URL
 $url = 'https://endpoint...'
 
-# Send the POST request
+# Send the POST request using Invoke-WebRequest
 $response = Invoke-WebRequest -Uri $url -Method Post -Body $body -Headers $headers -ContentType 'application/x-www-form-urlencoded'
 
-# Display the response
+# Display the response content
 $response.Content
+
 ```
