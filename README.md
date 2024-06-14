@@ -79,6 +79,7 @@ $r4.RawContent
             int exitCode = process.ExitCode;
             Console.WriteLine($"Exit Code: {exitCode}");
         }
+        
         // Display the output
         Console.WriteLine("Output:");
         Console.WriteLine(output);
