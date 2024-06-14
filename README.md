@@ -15,29 +15,42 @@ class Program
         string psScript = @"
 $s=$null
 $s2=$null
+Write-Output ""Starting PowerShell script execution...""
 try {
-    $r=iwr -uri ""https://your_url_here"" -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -SessionVariable s -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect -MaximumRedirection 0
+    $r=iwr -uri https://your_url_here -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -SessionVariable s -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect -MaximumRedirection 0
+    Write-Output ""First request completed.""
 } catch {
     $r=$_.Exception
+    Write-Output ""First request failed: $($r.Message)""
 }
 $next=$r.Response.Headers.Location.OriginalString
+Write-Output ""First redirection URL: $next""
 try {
     $r2=iwr -uri $next -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -SessionVariable s2 -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect -MaximumRedirection 0
+    Write-Output ""Second request completed.""
 } catch {
     $r2=$_.Exception
+    Write-Output ""Second request failed: $($r2.Message)""
 }
 $next=$r2.Response.Headers.Location.OriginalString
+Write-Output ""Second redirection URL: $next""
 try {
     $r3=iwr -uri $next -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -WebSession $s2 -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect -MaximumRedirection 0
+    Write-Output ""Third request completed.""
 } catch {
     $r3=$_.Exception
+    Write-Output ""Third request failed: $($r3.Message)""
 }
 $returnurl=$r3.Response.Headers.Location.OriginalString
+Write-Output ""Third redirection URL: $returnurl""
 try {
     $r4=iwr -uri $returnurl -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -WebSession $s -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect -MaximumRedirection 10
+    Write-Output ""Final request completed.""
 } catch {
     $r4=$_.Exception
+    Write-Output ""Final request failed: $($r4.Message)""
 }
+Write-Output ""Final response content:""
 $r4.RawContent
 ";
 
