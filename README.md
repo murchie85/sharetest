@@ -16,25 +16,25 @@ class Program
 $s=$null
 $s2=$null
 try {
-    $r=iwr -uri ""your_url_here""
+    $r=iwr -uri ""https://your_url_here"" -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -SessionVariable s -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect -MaximumRedirection 0
 } catch {
     $r=$_.Exception
 }
 $next=$r.Response.Headers.Location.OriginalString
 try {
-    $r2=iwr -uri $next -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -SessionVariable s2 -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect
+    $r2=iwr -uri $next -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -SessionVariable s2 -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect -MaximumRedirection 0
 } catch {
     $r2=$_.Exception
 }
 $next=$r2.Response.Headers.Location.OriginalString
 try {
-    $r3=iwr -uri $next -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -WebSession $s2 -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect
+    $r3=iwr -uri $next -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -WebSession $s2 -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect -MaximumRedirection 0
 } catch {
     $r3=$_.Exception
 }
 $returnurl=$r3.Response.Headers.Location.OriginalString
 try {
-    $r4=iwr -uri $returnurl -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -WebSession $s -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect
+    $r4=iwr -uri $returnurl -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -WebSession $s -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect -MaximumRedirection 10
 } catch {
     $r4=$_.Exception
 }
@@ -55,6 +55,7 @@ $r4.RawContent
             CreateNoWindow = true
         };
 
+
         using (Process process = new Process())
         {
             process.StartInfo = startInfo;
@@ -62,13 +63,22 @@ $r4.RawContent
             // Start the process
             process.Start();
 
-            // Read the output
-            output = process.StandardOutput.ReadToEnd();
-            error = process.StandardError.ReadToEnd();
+            // Asynchronously read the standard output and error
+            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+
+            // Wait for the process to exit and for the asynchronous read operations to complete
+            await Task.WhenAll(outputTask, errorTask);
+
+            output = outputTask.Result;
+            error = errorTask.Result;
 
             process.WaitForExit();
-        }
 
+            // Check the exit code
+            int exitCode = process.ExitCode;
+            Console.WriteLine($"Exit Code: {exitCode}");
+        }
         // Display the output
         Console.WriteLine("Output:");
         Console.WriteLine(output);
