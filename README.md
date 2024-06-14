@@ -1,3 +1,91 @@
+```c#
+using System;
+using System.Diagnostics;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        // Define variables to store the output and error
+        string output = string.Empty;
+        string error = string.Empty;
+
+        // Define the multiline PowerShell script with escaped double quotes
+        string psScript = @"
+$s=$null
+$s2=$null
+try {
+    $r=iwr -uri ""your_url_here""
+} catch {
+    $r=$_.Exception
+}
+$next=$r.Response.Headers.Location.OriginalString
+try {
+    $r2=iwr -uri $next -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -SessionVariable s2 -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect
+} catch {
+    $r2=$_.Exception
+}
+$next=$r2.Response.Headers.Location.OriginalString
+try {
+    $r3=iwr -uri $next -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -WebSession $s2 -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect
+} catch {
+    $r3=$_.Exception
+}
+$returnurl=$r3.Response.Headers.Location.OriginalString
+try {
+    $r4=iwr -uri $returnurl -UserAgent curl/123 -AllowUnencryptedAuthentication -NoProxy -WebSession $s -UseDefaultCredentials -Headers @{ Accept = ""*/*"" } -PreserveAuthorizationOnRedirect
+} catch {
+    $r4=$_.Exception
+}
+$r4.RawContent
+";
+
+        // Change to pwsh.exe if using PowerShell Core or PowerShell 7
+        string powerShellExe = "powershell.exe"; // Or use "pwsh.exe" for PowerShell Core
+
+        // Create a new process to run PowerShell
+        ProcessStartInfo startInfo = new ProcessStartInfo
+        {
+            FileName = powerShellExe,
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{psScript}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using (Process process = new Process())
+        {
+            process.StartInfo = startInfo;
+
+            // Start the process
+            process.Start();
+
+            // Read the output
+            output = process.StandardOutput.ReadToEnd();
+            error = process.StandardError.ReadToEnd();
+
+            process.WaitForExit();
+        }
+
+        // Display the output
+        Console.WriteLine("Output:");
+        Console.WriteLine(output);
+
+        // Display the error (if any)
+        if (!string.IsNullOrEmpty(error))
+        {
+            Console.WriteLine("Error:");
+            Console.WriteLine(error);
+        }
+    }
+}
+
+```
+
+
+
+
 Certainly! Below are examples illustrating those principles with respect to `software.amazon.awssdk.services.kinesis`:
 
 **1. One assert per test & Test one thing at a time**
