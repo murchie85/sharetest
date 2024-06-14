@@ -9,6 +9,7 @@ class Program
         // Define variables to store the output and error
         string output = string.Empty;
         string error = string.Empty;
+        string powerShellExe = @"C:\Program Files\PowerShell\7\pwsh.exe";
 
         // Define the multiline PowerShell script with escaped double quotes
         string psScript = @"
