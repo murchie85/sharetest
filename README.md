@@ -92,11 +92,18 @@ $r4.RawContent
             int exitCode = process.ExitCode;
             Console.WriteLine($"Exit Code: {exitCode}");
         }
-        
+
         // Display the output
         Console.WriteLine("Output:");
         Console.WriteLine(output);
 
+        // Display the output line-by-line
+        Console.WriteLine("Output:");
+        foreach (var line in output.Split(new[] { Environment.NewLine }, StringSplitOptions.None))
+        {
+            Console.WriteLine(line);
+        }
+        
         // Display the error (if any)
         if (!string.IsNullOrEmpty(error))
         {
