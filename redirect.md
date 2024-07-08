@@ -90,3 +90,12 @@ $defaultCreds = [System.Net.CredentialCache]::DefaultNetworkCredentials
 $defaultCreds
 
 ```
+
+```ps
+# Get the default credentials of the current user
+$defaultCreds = [System.Net.CredentialCache]::DefaultNetworkCredentials
+
+# Display the domain, username, and password properties
+$defaultCreds | Format-List -Property Domain, UserName, Password
+
+```
