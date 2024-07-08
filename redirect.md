@@ -78,3 +78,15 @@ if ($r.StatusCode -eq 302 -or $r.StatusCode -eq 301) {
 }
 
 ```
+
+
+get creds
+
+```ps
+# Get the default credentials of the current user
+$defaultCreds = [System.Net.CredentialCache]::DefaultNetworkCredentials
+
+# Display the credentials
+$defaultCreds
+
+```
