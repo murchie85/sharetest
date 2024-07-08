@@ -92,10 +92,16 @@ $defaultCreds
 ```
 
 ```ps
-# Get the default credentials of the current user
-$defaultCreds = [System.Net.CredentialCache]::DefaultNetworkCredentials
+# Retrieve the current user's username
+$currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 
-# Display the domain, username, and password properties
-$defaultCreds | Format-List -Property Domain, UserName, Password
+# Prompt for the password
+$currentPassword = Read-Host -AsSecureString "Enter password for $currentUser"
+
+# Create a PSCredential object
+$cred = New-Object System.Management.Automation.PSCredential($currentUser, $currentPassword)
+
+# Display the credentials
+$cred
 
 ```
