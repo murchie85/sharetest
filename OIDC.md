@@ -67,4 +67,6 @@ In this setup, the --negotiate -u : part tells cURL to use the Negotiate authent
     if (passwordMatch.Success)
     {
         cyberarkPassword = passwordMatch.Groups[1].Value;
-    }```
+    }
+
+    ```
