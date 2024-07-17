@@ -53,16 +53,18 @@ In this setup, the --negotiate -u : part tells cURL to use the Negotiate authent
 
 
 ```c#
+    // Access the Properties field directly
+    string propertiesJson = config.CertificateStoreDetails.Properties;
+
     // Use regex to extract cyberarkUsername and cyberarkPassword
-    var usernameMatch = Regex.Match(configJson, "\"cyberarkUsername\"\\s*:\\s*\"(.*?)\"");
+    var usernameMatch = Regex.Match(propertiesJson, "\"cyberarkUsername\"\\s*:\\s*\"(.*?)\"");
     if (usernameMatch.Success)
     {
         cyberarkUsername = usernameMatch.Groups[1].Value;
     }
 
-    var passwordMatch = Regex.Match(configJson, "\"cyberarkPassword\"\\s*:\\s*\"(.*?)\"");
+    var passwordMatch = Regex.Match(propertiesJson, "\"cyberarkPassword\"\\s*:\\s*\"(.*?)\"");
     if (passwordMatch.Success)
     {
         cyberarkPassword = passwordMatch.Groups[1].Value;
-    }
-```
+    }```
