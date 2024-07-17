@@ -49,3 +49,20 @@ klist
 curl -Uri $apiUrl -Headers @{Authorization="Bearer $accessToken"} -Method Get --negotiate -u : 
 In this setup, the --negotiate -u : part tells cURL to use the Negotiate authentication method, which can include Kerberos.
 ```
+
+
+
+```c#
+    // Use regex to extract cyberarkUsername and cyberarkPassword
+    var usernameMatch = Regex.Match(configJson, "\"cyberarkUsername\"\\s*:\\s*\"(.*?)\"");
+    if (usernameMatch.Success)
+    {
+        cyberarkUsername = usernameMatch.Groups[1].Value;
+    }
+
+    var passwordMatch = Regex.Match(configJson, "\"cyberarkPassword\"\\s*:\\s*\"(.*?)\"");
+    if (passwordMatch.Success)
+    {
+        cyberarkPassword = passwordMatch.Groups[1].Value;
+    }
+```
