@@ -7,36 +7,47 @@ public F5PagedSSLProfiles getPagedProfiles(string query)
 {
     string powerShellExe = @"C:\Program Files\PowerShell\7\pwsh.exe";
     string psScript = $@"
-        # PowerShell script to obtain the SSL profiles
-        $url = 'https://<your_endpoint>/mgmt/shared/authn/login'
-        $body = @{
-            username = '<your_username>'
-            password = '<your_password>'
-            loginProviderName = 'tmos'
-        } | ConvertTo-Json
+$s = $null
+$s2 = $null
 
-        $response = Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType 'application/json' -skipCertificateCheck
-        $token = $response.token.token
+Write-Output 'Starting PowerShell script execution...'
 
-        $secureURL = 'https://<your_endpoint>' + '{query}'
-        $headers = @{
-            'X-F5-Auth-Token' = $token
-            'Content-Type' = 'application/json'
-        }
+# Authenticate and get token
+$url = 'https://<your_endpoint>/mgmt/shared/authn/login'
+$body = @{
+    username = '<your_username>'
+    password = '<your_password>'
+    loginProviderName = 'tmos'
+} | ConvertTo-Json
 
-        $certs = Invoke-RestMethod -Uri $secureURL -Method Get -Headers $headers -skipCertificateCheck
-        $filteredCerts = $certs.items | Select-Object name, isBundle, keyType
+try {{
+    $response = Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType 'application/json' -SkipCertificateCheck
+    Write-Output 'First request completed.'
+}} catch {{
+    $response = $_.Exception
+    Write-Output 'First request failed: $($response.Message)'
+}}
 
-        $f5PagedSSLProfiles = [PSCustomObject]@{
-            items = $filteredCerts
-            totalItems = $certs.totalItems
-            totalPages = $certs.totalPages
-            pageIndex = $certs.pageIndex
-            nextLink = $certs.nextLink
-        }
+$token = $response.token.token
+$secureURL = 'https://<your_endpoint>' + '{query}'
+$headers = @{
+    'X-F5-Auth-Token' = $token
+    'Content-Type' = 'application/json'
+}
 
-        $f5PagedSSLProfiles | ConvertTo-Json -Depth 3
-    ";
+$certs = Invoke-RestMethod -Uri $secureURL -Method Get -Headers $headers -SkipCertificateCheck
+$filteredCerts = $certs.items | Select-Object name, isBundle, keyType
+
+$f5PagedSSLProfiles = [PSCustomObject]@{
+    items = $filteredCerts
+    totalItems = $certs.totalItems
+    totalPages = $certs.totalPages
+    pageIndex = $certs.pageIndex
+    nextLink = $certs.nextLink
+}
+
+$f5PagedSSLProfiles | ConvertTo-Json -Depth 3
+";
 
     string output = string.Empty;
     string error = string.Empty;
@@ -69,6 +80,5 @@ public F5PagedSSLProfiles getPagedProfiles(string query)
 
     return Newtonsoft.Json.JsonConvert.DeserializeObject<F5PagedSSLProfiles>(output);
 }
-
 
 ```	
