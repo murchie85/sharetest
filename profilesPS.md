@@ -74,3 +74,32 @@ $f5PagedSSLProfiles | ConvertTo-Json -Depth 3
 }
 
 ```	
+
+
+
+```
+    try
+    {
+        F5PagedSSLProfiles result = Newtonsoft.Json.JsonConvert.DeserializeObject<F5PagedSSLProfiles>(output);
+        LogHandlerCommon.Trace(logger, CertificateStore, $"Deserialized result: {Newtonsoft.Json.JsonConvert.SerializeObject(result)}");
+        return result;
+    }
+    catch (Exception ex)
+    {
+        LogHandlerCommon.Error(logger, CertificateStore, $"Error deserializing output: {ex.Message}");
+        throw;
+    }
+}
+```
+
+
+```
+try {{
+    $certs = Invoke-RestMethod -Uri $secureURL -Method Get -Headers $headers -SkipCertificateCheck
+    Write-Output 'Second request completed.'
+    Write-Output 'Certificates obtained: ' + ($certs | ConvertTo-Json -Depth 3)
+}} catch {{
+    $certs = $_.Exception
+    Write-Output 'Second request failed: $($certs.Message)'
+}}
+```
