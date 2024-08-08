@@ -2,7 +2,6 @@
 using System.Management.Automation;
 using System.Collections.Generic;
 
-
 public F5PagedSSLProfiles getPagedProfiles(string query)
 {
     string powerShellExe = @"C:\Program Files\PowerShell\7\pwsh.exe";
@@ -14,11 +13,7 @@ Write-Output 'Starting PowerShell script execution...'
 
 # Authenticate and get token
 $url = 'https://<your_endpoint>/mgmt/shared/authn/login'
-$body = @{
-    username = '<your_username>'
-    password = '<your_password>'
-    loginProviderName = 'tmos'
-} | ConvertTo-Json
+$body = @{{ username = '<your_username>'; password = '<your_password>'; loginProviderName = 'tmos' }} | ConvertTo-Json
 
 try {{
     $response = Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType 'application/json' -SkipCertificateCheck
@@ -30,21 +25,18 @@ try {{
 
 $token = $response.token.token
 $secureURL = 'https://<your_endpoint>' + '{query}'
-$headers = @{
-    'X-F5-Auth-Token' = $token
-    'Content-Type' = 'application/json'
-}
+$headers = @{{ 'X-F5-Auth-Token' = $token; 'Content-Type' = 'application/json' }}
 
 $certs = Invoke-RestMethod -Uri $secureURL -Method Get -Headers $headers -SkipCertificateCheck
 $filteredCerts = $certs.items | Select-Object name, isBundle, keyType
 
-$f5PagedSSLProfiles = [PSCustomObject]@{
+$f5PagedSSLProfiles = [PSCustomObject]@{{
     items = $filteredCerts
     totalItems = $certs.totalItems
     totalPages = $certs.totalPages
     pageIndex = $certs.pageIndex
     nextLink = $certs.nextLink
-}
+}}
 
 $f5PagedSSLProfiles | ConvertTo-Json -Depth 3
 ";
