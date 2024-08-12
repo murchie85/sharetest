@@ -15,4 +15,13 @@
         {
             scriptContent = reader.ReadToEnd();
         }
+
+        // Save the script to a temporary file
+        string tempScriptPath = Path.Combine(Path.GetTempPath(), "profiles.ps1");
+        File.WriteAllText(tempScriptPath, scriptContent);
+
+        // Prepare to run the script using ProcessStartInfo
+        string arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{tempScriptPath}\"";
+
+
 ```
