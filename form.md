@@ -23,4 +23,18 @@ $formData = @{
     filedata = $sillystring
 }
 $body = ($formData.GetEnumerator() | ForEach-Object { "$($_.Key)=$([System.Web.HttpUtility]::UrlEncode($_.Value))" }) -join '&'
+
+
+$session.Cookies.GetAllCookies() | ForEach-Object {
+    Write-Host "Name: $($_.Name)"
+    Write-Host "Value: $($_.Value)"
+    Write-Host "Domain: $($_.Domain)"
+    Write-Host "Path: $($_.Path)"
+    Write-Host "Expires: $($_.Expires)"
+    Write-Host "Secure: $($_.Secure)"
+    Write-Host "HttpOnly: $($_.HttpOnly)"
+    Write-Host "------------------"
+}
+
+
 ```
