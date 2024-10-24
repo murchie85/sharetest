@@ -1,6 +1,23 @@
-public async Task<string> HandleOidcRedirectsAsync(string initialUrl, HttpClient httpClient = null)
+using System;
+using System.Net.Http;
+using System.Net;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+
+public async Task<string> HandleOidcRedirectsAsync(string initialUrl, string username, string password, HttpClient httpClient = null)
 {
-    httpClient ??= new HttpClient();
+    // Create credentials
+    var credentials = new NetworkCredential(username, password);
+
+    // If no HttpClient provided, create one with credentials
+    if (httpClient == null)
+    {
+        var handler = new HttpClientHandler
+        {
+            Credentials = credentials
+        };
+        httpClient = new HttpClient(handler);
+    }
     
     var headers = new Dictionary<string, string>
     {
@@ -44,3 +61,11 @@ public async Task<string> HandleOidcRedirectsAsync(string initialUrl, HttpClient
         throw new Exception($"OIDC redirect failed: {ex.Message}", ex);
     }
 }
+
+
+// Example usage:
+var result = await HandleOidcRedirectsAsync(
+    "https://your-initial-url.com",
+    "your-username",
+    "your-password"
+);
