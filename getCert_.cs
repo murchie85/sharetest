@@ -1,80 +1,72 @@
-private async Task<string> HandleOidcRedirectsAsync(string initialUrl, string username, string password, HttpClient httpClient = null)
+using System;
+using System.Net.Http;
+using System.Threading.Tasks;
+
+public class YourClass
 {
-    LogHandlerCommon.MethodEntry(logger, CertificateStore, "GetCertificateEntry");
-    LogHandlerCommon.Info(logger, CertificateStore, $"username: '{username}'");
-    LogHandlerCommon.Info(logger, CertificateStore, $"password: '{password}'");
-    LogHandlerCommon.Info(logger, CertificateStore, $"initialUrl: '{initialUrl}'");
+    private static readonly HttpClient client = new HttpClient();
 
-    var credentials = new NetworkCredential(username, password);
-    
-    if (httpClient == null)
+    public async Task<string> MakeRequestsAsync(string uri, string creds)
     {
-        var handler = new HttpClientHandler
+        string result = null;
+        string firstLocation = null;
+        string secondLocation = null;
+        string thirdLocation = null;
+
+        try
         {
-            Credentials = credentials
-        };
-        httpClient = new HttpClient(handler);
-    }
-
-    var headers = new Dictionary<string, string>
-    {
-        { "Accept", "*/*" }
-    };
-
-    var currentUrl = initialUrl;
-    for (int redirectCount = 0; redirectCount < 4; redirectCount++) // Limit redirects
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, currentUrl);
-
-        // Add headers
-        foreach (var header in headers)
+            // First request
+            var response = await MakeRequestAsync(uri, creds);
+            firstLocation = response.Headers.Location?.ToString();
+            Console.WriteLine($"Next location: {firstLocation}");
+        }
+        catch (Exception ex)
         {
-            request.Headers.Add(header.Key, header.Value);
+            Console.WriteLine($"First request failed: {ex.Message}");
         }
 
-        request.Headers.Add("UserAgent", "curl/123");
-        request.Properties["AllowUnencryptedAuthentication"] = true;
-
-        var response = await httpClient.SendAsync(request);
-
-        // If no redirect (i.e., Location header missing), check for meta-refresh
-        if (!response.Headers.Location?.OriginalString.Any() ?? true)
+        try
         {
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            // Check if it's an HTML page with meta-refresh
-            var metaRefreshUrl = ExtractMetaRefreshUrl(responseContent);
-            if (!string.IsNullOrEmpty(metaRefreshUrl))
+            // Second request
+            if (!string.IsNullOrEmpty(firstLocation))
             {
-                LogHandlerCommon.Info(logger, CertificateStore, $"Meta refresh detected, new URL: '{metaRefreshUrl}'");
-                currentUrl = metaRefreshUrl;
-                continue; // Retry with the new URL
+                var response = await MakeRequestAsync(firstLocation, creds);
+                secondLocation = response.Headers.Location?.ToString();
+                Console.WriteLine($"Third location: {secondLocation}");
             }
-
-            // If no meta-refresh or Location, return content
-            return responseContent;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Second request failed: {ex.Message}");
         }
 
-        // Follow standard Location-based redirect
-        currentUrl = response.Headers.Location.OriginalString;
-        LogHandlerCommon.Info(logger, CertificateStore, $"Next location: '{currentUrl}'");
+        try
+        {
+            // Third request
+            if (!string.IsNullOrEmpty(secondLocation))
+            {
+                var response = await MakeRequestAsync(secondLocation, creds);
+                thirdLocation = response.Headers.Location?.ToString();
+                Console.WriteLine($"Third session: {thirdLocation}");
+                result = await response.Content.ReadAsStringAsync(); // Assuming you're expecting content in the last call
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Third request failed: {ex.Message}");
+        }
+
+        return result;
     }
 
-    throw new Exception("Too many redirects");
-}
+    private async Task<HttpResponseMessage> MakeRequestAsync(string uri, string creds)
+    {
+        var requestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
+        requestMessage.Headers.Add("User-Agent", "curl/123");
+        requestMessage.Headers.Add("Accept", "*/*");
+        // Add your authentication here (example with Basic auth)
+        requestMessage.Headers.Add("Authorization", $"Basic {creds}");
 
-// Helper method to extract the URL from a meta-refresh tag
-private string ExtractMetaRefreshUrl(string htmlContent)
-{
-    const string metaRefreshTag = "<meta http-equiv=\"refresh\" content=\"";
-    var startIndex = htmlContent.IndexOf(metaRefreshTag, StringComparison.OrdinalIgnoreCase);
-    if (startIndex == -1) return null;
-
-    startIndex += metaRefreshTag.Length;
-    var endIndex = htmlContent.IndexOf("\"", startIndex);
-    if (endIndex == -1) return null;
-
-    var refreshContent = htmlContent.Substring(startIndex, endIndex - startIndex);
-    var parts = refreshContent.Split(new[] { ";url=" }, StringSplitOptions.RemoveEmptyEntries);
-    return parts.Length > 1 ? parts[1].Trim(' ', '"', '\'') : null;
+        return await client.SendAsync(requestMessage);
+    }
 }
