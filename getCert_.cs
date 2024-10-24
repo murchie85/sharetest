@@ -4,8 +4,9 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 
-public void GetFinalContent(string uri, string username, string password, string clientMachine, string path)
+public string GetFinalContent(string uri, string username, string password, string clientMachine, string path)
 {
+    string finalContent = null;
     string fullUri = uri + clientMachine + "/getcertificateentry?path=" + path;
 
     // Initialize the HTTP handler with required settings
@@ -29,8 +30,8 @@ public void GetFinalContent(string uri, string username, string password, string
 
         try
         {
-            LogHandlerCommon.Info(logger, CertificateStore, $"Starting first request to URI: {uri}");
-            var response = client.GetAsync(uri).Result;
+            LogHandlerCommon.Info(logger, CertificateStore, $"Starting first request to URI: {fullUri}");
+            var response = client.GetAsync(fullUri).Result;
 
             var next = response.Headers.Location?.ToString();
             LogHandlerCommon.Info(logger, CertificateStore, $"Next URL after first request: {next}");
@@ -59,8 +60,8 @@ public void GetFinalContent(string uri, string username, string password, string
                         LogHandlerCommon.Info(logger, CertificateStore, $"Starting fourth request to URL: {returnUrl}");
                         var response4 = client.GetAsync(returnUrl).Result;
 
-                        var finalContent = response4.Content.ReadAsStringAsync().Result.Trim('"');
-                        LogHandlerCommon.Info(logger, CertificateStore, $"Final content: {finalContent}");
+                        finalContent = response4.Content.ReadAsStringAsync().Result.Trim('"');
+                        LogHandlerCommon.Info(logger, CertificateStore, $"Final content retrieved.");
                     }
                     else
                     {
@@ -82,4 +83,6 @@ public void GetFinalContent(string uri, string username, string password, string
             LogHandlerCommon.Info(logger, CertificateStore, $"Exception occurred: {ex.Message}");
         }
     }
+
+    return finalContent;
 }
