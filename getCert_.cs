@@ -1,77 +1,85 @@
 using System;
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
-using System.Threading.Tasks;
 
-public class YourClass
+public void GetFinalContent(string uri, string username, string password, string clientMachine, string path)
 {
-    public async Task<string> MakeRequestsAsync(string uri, string username, string password)
+    string fullUri = uri + clientMachine + "/getcertificateentry?path=" + path;
+
+    // Initialize the HTTP handler with required settings
+    var handler = new HttpClientHandler
     {
-        string result = null;
-        string firstLocation = null;
-        string secondLocation = null;
-        string thirdLocation = null;
+        AllowAutoRedirect = false, // Prevent automatic redirection
+        UseProxy = false,          // Disable proxy usage
+        CookieContainer = new CookieContainer(),
+        UseCookies = true
+    };
 
-        // Set up HttpClient inside the method
-        using (HttpClient client = new HttpClient())
+    using (var client = new HttpClient(handler))
+    {
+        // Set headers
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("curl/123");
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+
+        // Add Basic Authentication header
+        string authToken = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{username}:{password}"));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authToken);
+
+        try
         {
-            try
-            {
-                // First request
-                var response = await MakeRequestAsync(client, uri, username, password);
-                firstLocation = response.Headers.Location?.ToString();
-                Console.WriteLine($"Next location: {firstLocation}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"First request failed: {ex.Message}");
-            }
+            LogHandlerCommon.Info(logger, CertificateStore, $"Starting first request to URI: {uri}");
+            var response = client.GetAsync(uri).Result;
 
-            try
-            {
-                // Second request
-                if (!string.IsNullOrEmpty(firstLocation))
-                {
-                    var response = await MakeRequestAsync(client, firstLocation, username, password);
-                    secondLocation = response.Headers.Location?.ToString();
-                    Console.WriteLine($"Third location: {secondLocation}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Second request failed: {ex.Message}");
-            }
+            var next = response.Headers.Location?.ToString();
+            LogHandlerCommon.Info(logger, CertificateStore, $"Next URL after first request: {next}");
 
-            try
+            // Second request
+            if (!string.IsNullOrEmpty(next))
             {
+                LogHandlerCommon.Info(logger, CertificateStore, $"Starting second request to URL: {next}");
+                var response2 = client.GetAsync(next).Result;
+
+                var next2 = response2.Headers.Location?.ToString();
+                LogHandlerCommon.Info(logger, CertificateStore, $"Next URL after second request: {next2}");
+
                 // Third request
-                if (!string.IsNullOrEmpty(secondLocation))
+                if (!string.IsNullOrEmpty(next2))
                 {
-                    var response = await MakeRequestAsync(client, secondLocation, username, password);
-                    thirdLocation = response.Headers.Location?.ToString();
-                    Console.WriteLine($"Third session: {thirdLocation}");
-                    result = await response.Content.ReadAsStringAsync(); // Assuming you're expecting content in the last call
+                    LogHandlerCommon.Info(logger, CertificateStore, $"Starting third request to URL: {next2}");
+                    var response3 = client.GetAsync(next2).Result;
+
+                    var returnUrl = response3.Headers.Location?.ToString();
+                    LogHandlerCommon.Info(logger, CertificateStore, $"Return URL after third request: {returnUrl}");
+
+                    // Fourth request
+                    if (!string.IsNullOrEmpty(returnUrl))
+                    {
+                        LogHandlerCommon.Info(logger, CertificateStore, $"Starting fourth request to URL: {returnUrl}");
+                        var response4 = client.GetAsync(returnUrl).Result;
+
+                        var finalContent = response4.Content.ReadAsStringAsync().Result.Trim('"');
+                        LogHandlerCommon.Info(logger, CertificateStore, $"Final content: {finalContent}");
+                    }
+                    else
+                    {
+                        LogHandlerCommon.Info(logger, CertificateStore, "Return URL is null after third request.");
+                    }
+                }
+                else
+                {
+                    LogHandlerCommon.Info(logger, CertificateStore, "Next URL is null after second request.");
                 }
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"Third request failed: {ex.Message}");
+                LogHandlerCommon.Info(logger, CertificateStore, "Next URL is null after first request.");
             }
         }
-
-        return result;
-    }
-
-    private async Task<HttpResponseMessage> MakeRequestAsync(HttpClient client, string uri, string username, string password)
-    {
-        // Create a basic authentication header from username and password
-        var authToken = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{username}:{password}"));
-
-        var requestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
-        requestMessage.Headers.Add("User-Agent", "curl/123");
-        requestMessage.Headers.Add("Accept", "*/*");
-        requestMessage.Headers.Add("Authorization", $"Basic {authToken}");
-
-        return await client.SendAsync(requestMessage);
+        catch (Exception ex)
+        {
+            LogHandlerCommon.Info(logger, CertificateStore, $"Exception occurred: {ex.Message}");
+        }
     }
 }
