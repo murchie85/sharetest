@@ -4,10 +4,10 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 
-public string GetFinalContent(string uri, string username, string password, string clientMachine, string path)
+public string GetFinalContent(string uri, string username, string password)
 {
     string finalContent = null;
-    string fullUri = uri + clientMachine + "/getcertificateentry?path=" + path;
+    string fullUri = uri;
 
     // Initialize the HTTP handler with required settings
     var handler = new HttpClientHandler
