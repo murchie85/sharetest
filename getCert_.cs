@@ -1,15 +1,12 @@
-using System;
-using System.Net.Http;
-using System.Net;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-
-public async Task<string> HandleOidcRedirectsAsync(string initialUrl, string username, string password, HttpClient httpClient = null)
+private async Task<string> HandleOidcRedirectsAsync(string initialUrl, string username, string password, HttpClient httpClient = null)
 {
-    // Create credentials
-    var credentials = new NetworkCredential(username, password);
+    LogHandlerCommon.MethodEntry(logger, CertificateStore, "GetCertificateEntry");
+    LogHandlerCommon.Info(logger, CertificateStore, $"username: '{username}'");
+    LogHandlerCommon.Info(logger, CertificateStore, $"password: '{password}'");
+    LogHandlerCommon.Info(logger, CertificateStore, $"initialUrl: '{initialUrl}'");
 
-    // If no HttpClient provided, create one with credentials
+    var credentials = new NetworkCredential(username, password);
+    
     if (httpClient == null)
     {
         var handler = new HttpClientHandler
@@ -18,54 +15,66 @@ public async Task<string> HandleOidcRedirectsAsync(string initialUrl, string use
         };
         httpClient = new HttpClient(handler);
     }
-    
+
     var headers = new Dictionary<string, string>
     {
         { "Accept", "*/*" }
     };
 
-    try 
+    var currentUrl = initialUrl;
+    for (int redirectCount = 0; redirectCount < 4; redirectCount++) // Limit redirects
     {
-        var currentUrl = initialUrl;
-        for (int redirectCount = 0; redirectCount < 4; redirectCount++) // Limit redirects
+        using var request = new HttpRequestMessage(HttpMethod.Get, currentUrl);
+
+        // Add headers
+        foreach (var header in headers)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, currentUrl);
-            
-            // Add headers
-            foreach (var header in headers)
-            {
-                request.Headers.Add(header.Key, header.Value);
-            }
-
-            // Configure request
-            request.Headers.Add("UserAgent", "curl/123");
-            request.Properties["AllowUnencryptedAuthentication"] = true;
-
-            var response = await httpClient.SendAsync(request);
-            
-            // If no redirect, return content
-            if (!response.Headers.Location?.OriginalString?.Any() ?? true)
-            {
-                return await response.Content.ReadAsStringAsync();
-            }
-
-            // Update URL for next redirect
-            currentUrl = response.Headers.Location.OriginalString;
-            Console.WriteLine($"Next location: {currentUrl}");
+            request.Headers.Add(header.Key, header.Value);
         }
 
-        throw new Exception("Too many redirects");
+        request.Headers.Add("UserAgent", "curl/123");
+        request.Properties["AllowUnencryptedAuthentication"] = true;
+
+        var response = await httpClient.SendAsync(request);
+
+        // If no redirect (i.e., Location header missing), check for meta-refresh
+        if (!response.Headers.Location?.OriginalString.Any() ?? true)
+        {
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            // Check if it's an HTML page with meta-refresh
+            var metaRefreshUrl = ExtractMetaRefreshUrl(responseContent);
+            if (!string.IsNullOrEmpty(metaRefreshUrl))
+            {
+                LogHandlerCommon.Info(logger, CertificateStore, $"Meta refresh detected, new URL: '{metaRefreshUrl}'");
+                currentUrl = metaRefreshUrl;
+                continue; // Retry with the new URL
+            }
+
+            // If no meta-refresh or Location, return content
+            return responseContent;
+        }
+
+        // Follow standard Location-based redirect
+        currentUrl = response.Headers.Location.OriginalString;
+        LogHandlerCommon.Info(logger, CertificateStore, $"Next location: '{currentUrl}'");
     }
-    catch (Exception ex)
-    {
-        throw new Exception($"OIDC redirect failed: {ex.Message}", ex);
-    }
+
+    throw new Exception("Too many redirects");
 }
 
+// Helper method to extract the URL from a meta-refresh tag
+private string ExtractMetaRefreshUrl(string htmlContent)
+{
+    const string metaRefreshTag = "<meta http-equiv=\"refresh\" content=\"";
+    var startIndex = htmlContent.IndexOf(metaRefreshTag, StringComparison.OrdinalIgnoreCase);
+    if (startIndex == -1) return null;
 
-// Example usage:
-var result = await HandleOidcRedirectsAsync(
-    "https://your-initial-url.com",
-    "your-username",
-    "your-password"
-);
+    startIndex += metaRefreshTag.Length;
+    var endIndex = htmlContent.IndexOf("\"", startIndex);
+    if (endIndex == -1) return null;
+
+    var refreshContent = htmlContent.Substring(startIndex, endIndex - startIndex);
+    var parts = refreshContent.Split(new[] { ";url=" }, StringSplitOptions.RemoveEmptyEntries);
+    return parts.Length > 1 ? parts[1].Trim(' ', '"', '\'') : null;
+}
