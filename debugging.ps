@@ -12,3 +12,109 @@ try {
     Write-Host "Status code: $($_.Exception.Response.StatusCode)"
     Write-Host "Status description: $($_.Exception.Response.StatusDescription)"
 }
+
+
+
+
+# Function to check if token is expired
+function Test-TokenExpiration {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$Cookie
+    )
+    try {
+        # Make a simple test request
+        $testRequest = Invoke-WebRequest -Uri $first -Method HEAD -Headers @{
+            'Cookie' = $Cookie
+        } -ErrorAction Stop
+        return $true  # Token is valid
+    }
+    catch {
+        return $false  # Token is expired or invalid
+    }
+}
+
+# Function to refresh token
+function Get-NewToken {
+    param (
+        [Parameter(Mandatory=$true)]
+        [System.Management.Automation.PSCredential]$Credential
+    )
+    
+    try {
+        # Create new credential object
+        $cred = New-Object System.Management.Automation.PSCredential($Credential.UserName, (ConvertTo-SecureString $Credential.GetNetworkCredential().Password -AsPlainText -Force))
+        
+        # Initial authentication request
+        $s = $null
+        $s2 = $null
+        
+        # Your existing authentication code
+        $result = Invoke-WebRequest -Uri $first -UserAgent "curl/123" `
+            -AllowUnencryptedAuthentication -NoProxy `
+            -SessionVariable s `
+            -Credential $cred `
+            -Headers @{ Accept = "*/*" } `
+            -PreserveAuthorizationOnRedirect -MaximumRedirection 0
+
+        return $s  # Return the new session
+    }
+    catch {
+        Write-Error "Failed to obtain new token: $_"
+        return $null
+    }
+}
+
+# Main script
+try {
+    # Store credentials securely
+    $cred = New-Object System.Management.Automation.PSCredential($username, (ConvertTo-SecureString $password -AsPlainText -Force))
+    
+    # Initialize session
+    $s = $null
+    $s2 = $null
+    
+    # Your existing code
+    $r3 = Invoke-WebRequest -uri $first -UserAgent "curl/123" `
+        -AllowUnencryptedAuthentication -NoProxy `
+        -SessionVariable s `
+        -Credential $cred `
+        -Headers @{ Accept = "*/*" } `
+        -PreserveAuthorizationOnRedirect -MaximumRedirection 0
+    
+    # Before each subsequent request, check token
+    if (-not (Test-TokenExpiration -Cookie $s.Cookies.GetCookieHeader($first))) {
+        Write-Host "Token expired, refreshing..."
+        $s = Get-NewToken -Credential $cred
+        if ($null -eq $s) {
+            throw "Failed to refresh token"
+        }
+    }
+    
+    # Continue with your existing requests using the new or existing session
+    $second = $r3.Response.Headers.Location.OriginalString
+    Write-Host "second URL: " + $r3.Response.Headers.Location.OriginalString
+    
+    # Repeat token check before next request
+    if (-not (Test-TokenExpiration -Cookie $s.Cookies.GetCookieHeader($second))) {
+        Write-Host "Token expired, refreshing..."
+        $s = Get-NewToken -Credential $cred
+        if ($null -eq $s) {
+            throw "Failed to refresh token"
+        }
+    }
+    
+    $r4 = Invoke-WebRequest -uri $second -UserAgent "curl/123" `
+        -AllowUnencryptedAuthentication -NoProxy `
+        -WebSession $s `
+        -Credential $cred `
+        -Headers @{ Accept = "*/*" } `
+        -PreserveAuthorizationOnRedirect -MaximumRedirection 0
+
+    # And so on for your remaining requests...
+}
+catch {
+    Write-Error "An error occurred: $_"
+    Write-Error $_.Exception.Message
+    Write-Error $_.Exception.Response.StatusCode
+}
