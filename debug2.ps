@@ -9,42 +9,43 @@ function Get-NewToken {
     try {
         $session = $null
         
-        # Initial authentication request with redirect handling
-        $response = Invoke-WebRequest -Uri $AuthUrl `
-            -Method Get `
-            -UserAgent "curl/7.88.1" `
-            -AllowUnencryptedAuthentication `
-            -NoProxy `
-            -SessionVariable session `
-            -Credential $Credential `
-            -Headers @{
-                Accept = "*/*"
-                "Accept-Encoding" = "gzip, deflate"
-            } `
-            -MaximumRedirection 0 `
-            -ErrorAction SilentlyContinue
-            
-        # Handle 302 redirect explicitly
-        if ($response.StatusCode -eq 302 -or $response.StatusCode -eq 301) {
-            $redirectUrl = $response.Headers.Location
-            Write-Verbose "Following redirect to: $redirectUrl"
-            
-            # Follow the redirect with the same session
-            $response = Invoke-WebRequest -Uri $redirectUrl `
+        # Initial authentication request - explicitly handle 302
+        try {
+            $response = Invoke-WebRequest -Uri $AuthUrl `
                 -Method Get `
                 -UserAgent "curl/7.88.1" `
                 -AllowUnencryptedAuthentication `
                 -NoProxy `
-                -WebSession $session `
+                -SessionVariable session `
+                -Credential $Credential `
                 -Headers @{
                     Accept = "*/*"
                     "Accept-Encoding" = "gzip, deflate"
                 } `
-                -MaximumRedirection 0 `
-                -ErrorAction SilentlyContinue
+                -MaximumRedirection 0
+        }
+        catch [System.Net.WebException] {
+            # Check if the exception is due to a 302 redirect
+            if ($_.Exception.Response.StatusCode -eq 'Found') {
+                $response = $_.Exception.Response
+                $redirectUrl = $response.Headers['Location']
+                Write-Host "Received redirect to: $redirectUrl"
                 
-            # Store the redirect URL for future use
-            $script:LastRedirectUrl = $redirectUrl
+                # Follow the redirect with the same session
+                $response = Invoke-WebRequest -Uri $redirectUrl `
+                    -Method Get `
+                    -UserAgent "curl/7.88.1" `
+                    -AllowUnencryptedAuthentication `
+                    -NoProxy `
+                    -WebSession $session `
+                    -Headers @{
+                        Accept = "*/*"
+                        "Accept-Encoding" = "gzip, deflate"
+                    }
+            }
+            else {
+                throw
+            }
         }
         
         if ($null -eq $session) {
@@ -54,16 +55,17 @@ function Get-NewToken {
         return @{
             Session = $session
             Response = $response
-            RedirectUrl = $script:LastRedirectUrl
+            RedirectUrl = $redirectUrl
         }
     }
     catch {
-        $errorMessage = $_.Exception.Message
+        Write-Host "Full Error Details:"
+        Write-Host $_.Exception.Message
         if ($_.Exception.Response) {
-            $errorMessage += "`nResponse Status Code: $($_.Exception.Response.StatusCode.value__)"
-            $errorMessage += "`nResponse Status Description: $($_.Exception.Response.StatusDescription)"
+            Write-Host "Status Code: $($_.Exception.Response.StatusCode)"
+            Write-Host "Status Description: $($_.Exception.Response.StatusDescription)"
+            Write-Host "Headers: $($_.Exception.Response.Headers | ConvertTo-Json)"
         }
-        Write-Error "Error in Get-NewToken: $errorMessage"
         throw
     }
 }
@@ -78,30 +80,13 @@ function Invoke-AuthenticatedRequest {
         [System.Management.Automation.PSCredential]$Credential,
         [Parameter(Mandatory=$true)]
         [string]$InitialAuthUrl,
-        [switch]$FollowRedirect,
         [int]$RetryCount = 1
     )
     
     try {
-        $response = Invoke-WebRequest -Uri $Url `
-            -Method Get `
-            -UserAgent "curl/7.88.1" `
-            -AllowUnencryptedAuthentication `
-            -NoProxy `
-            -WebSession $Session `
-            -Headers @{
-                Accept = "*/*"
-                "Accept-Encoding" = "gzip, deflate"
-            } `
-            -MaximumRedirection $(if ($FollowRedirect) { 5 } else { 0 }) `
-            -ErrorAction SilentlyContinue
-            
-        # Handle redirect if needed and not automatically following
-        if ((-not $FollowRedirect) -and ($response.StatusCode -eq 302 -or $response.StatusCode -eq 301)) {
-            $redirectUrl = $response.Headers.Location
-            Write-Verbose "Following redirect to: $redirectUrl"
-            
-            $response = Invoke-WebRequest -Uri $redirectUrl `
+        # Make request
+        try {
+            $response = Invoke-WebRequest -Uri $Url `
                 -Method Get `
                 -UserAgent "curl/7.88.1" `
                 -AllowUnencryptedAuthentication `
@@ -113,14 +98,33 @@ function Invoke-AuthenticatedRequest {
                 } `
                 -MaximumRedirection 0
         }
+        catch [System.Net.WebException] {
+            if ($_.Exception.Response.StatusCode -eq 'Found') {
+                $response = $_.Exception.Response
+                $redirectUrl = $response.Headers['Location']
+                Write-Host "Following redirect to: $redirectUrl"
+                
+                $response = Invoke-WebRequest -Uri $redirectUrl `
+                    -Method Get `
+                    -UserAgent "curl/7.88.1" `
+                    -AllowUnencryptedAuthentication `
+                    -NoProxy `
+                    -WebSession $Session `
+                    -Headers @{
+                        Accept = "*/*"
+                        "Accept-Encoding" = "gzip, deflate"
+                    }
+            }
+            else {
+                throw
+            }
+        }
             
         return $response
     }
     catch {
-        if ($RetryCount -gt 0 -and 
-            ($_.Exception.Response.StatusCode -eq 401 -or 
-             $_.Exception.Response.StatusCode -eq 302)) {
-            Write-Verbose "Authentication failed or redirect needed, attempting refresh..."
+        if ($RetryCount -gt 0 -and $_.Exception.Response.StatusCode -eq 401) {
+            Write-Host "Authentication failed, attempting refresh..."
             
             # Get new token
             $newAuth = Get-NewToken -Credential $Credential -AuthUrl $InitialAuthUrl
@@ -131,48 +135,47 @@ function Invoke-AuthenticatedRequest {
                 -Session $newAuth.Session `
                 -Credential $Credential `
                 -InitialAuthUrl $InitialAuthUrl `
-                -FollowRedirect:$FollowRedirect `
                 -RetryCount ($RetryCount - 1)
         }
         
+        Write-Host "Error Details:"
+        Write-Host $_.Exception.Message
+        if ($_.Exception.Response) {
+            Write-Host "Status Code: $($_.Exception.Response.StatusCode)"
+            Write-Host "Status Description: $($_.Exception.Response.StatusDescription)"
+        }
         throw
     }
 }
 
 # Example usage
 try {
-    # Enable verbose output
-    $VerbosePreference = "Continue"
-    
-    # Create credential object (replace with your actual credentials)
+    # Create credential object
     $securePass = ConvertTo-SecureString $password -AsPlainText -Force
     $cred = New-Object System.Management.Automation.PSCredential($username, $securePass)
     
-    # Initial authentication
     Write-Host "Performing initial authentication..."
     $auth = Get-NewToken -Credential $cred -AuthUrl $firstUrl
     $session = $auth.Session
     
-    # Get redirect URL from initial response
-    $nextUrl = $auth.RedirectUrl
-    Write-Host "Next URL: $nextUrl"
+    Write-Host "Initial auth complete, redirect URL: $($auth.RedirectUrl)"
     
-    # Make subsequent request with redirect handling
-    $response2 = Invoke-AuthenticatedRequest `
-        -Url $nextUrl `
-        -Session $session `
-        -Credential $cred `
-        -InitialAuthUrl $firstUrl `
-        -FollowRedirect
-    
-    Write-Host "Request completed successfully"
-    $response2.Content
+    if ($auth.RedirectUrl) {
+        $response2 = Invoke-AuthenticatedRequest `
+            -Url $auth.RedirectUrl `
+            -Session $session `
+            -Credential $cred `
+            -InitialAuthUrl $firstUrl
+            
+        Write-Host "Final response status: $($response2.StatusCode)"
+        Write-Host "Final response content length: $($response2.RawContentLength)"
+    }
 }
 catch {
     Write-Error "Script failed: $($_.Exception.Message)"
     if ($_.Exception.Response) {
-        Write-Error "Response Status Code: $($_.Exception.Response.StatusCode.value__)"
-        Write-Error "Response Status Description: $($_.Exception.Response.StatusDescription)"
+        Write-Error "Status Code: $($_.Exception.Response.StatusCode)"
+        Write-Error "Status Description: $($_.Exception.Response.StatusDescription)"
     }
     throw
 }
