@@ -179,3 +179,84 @@ catch {
     }
     throw
 }
+
+
+
+
+
+
+
+function Get-NewToken {
+    param (
+        [Parameter(Mandatory=$true)]
+        [System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory=$true)]
+        [string]$AuthUrl
+    )
+    
+    try {
+        # Initialize session variable
+        $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+        
+        # Initial authentication request - follow redirects automatically if possible
+        try {
+            $response = Invoke-WebRequest -Uri $AuthUrl `
+                -Method Get `
+                -UserAgent "curl/7.88.1" `
+                -AllowUnencryptedAuthentication `
+                -NoProxy `
+                -SessionVariable session `
+                -Credential $Credential `
+                -Headers @{
+                    Accept = "*/*"
+                    "Accept-Encoding" = "gzip, deflate"
+                } `
+                -MaximumRedirection 10
+        }
+        catch [System.Net.WebException] {
+            # Check if the exception is due to a 302 redirect
+            if ($_.Exception.Response.StatusCode -eq 'Found') {
+                $response = $_.Exception.Response
+                $redirectUrl = $response.Headers['Location']
+                Write-Host "Received redirect to: $redirectUrl"
+                
+                # Follow the redirect with the same session
+                $response = Invoke-WebRequest -Uri $redirectUrl `
+                    -Method Get `
+                    -UserAgent "curl/7.88.1" `
+                    -AllowUnencryptedAuthentication `
+                    -NoProxy `
+                    -WebSession $session `
+                    -Headers @{
+                        Accept = "*/*"
+                        "Accept-Encoding" = "gzip, deflate"
+                    }
+            }
+            else {
+                throw
+            }
+        }
+        
+        if ($null -eq $session) {
+            throw "Failed to create session"
+        }
+        
+        return @{
+            Session = $session
+            Response = $response
+            RedirectUrl = $redirectUrl
+        }
+    }
+    catch {
+        Write-Host "Full Error Details:"
+        Write-Host $_.Exception.Message
+        if ($_.Exception.Response) {
+            Write-Host "Status Code: $($_.Exception.Response.StatusCode)"
+            Write-Host "Status Description: $($_.Exception.Response.StatusDescription)"
+            Write-Host "Headers: $($_.Exception.Response.Headers | ConvertTo-Json)"
+        }
+        throw
+    }
+}
+
+# Check the logic and add any specific details you'd like to ensure
