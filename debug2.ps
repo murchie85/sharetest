@@ -1,98 +1,53 @@
-# Define your credentials
+# Define credentials and initial URL
 $username = "REDACTED"
 $password = ConvertTo-SecureString "REDACTED" -AsPlainText -Force
 $cred = New-Object System.Management.Automation.PSCredential($username, $password)
-
-# Initial URL
 $uri = 'REDACTED'
 
-# Create a single WebRequestSession to preserve cookies and tokens
+# Create a single WebRequestSession
 $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+$redirectLimit = 5
 
-# Set maximum redirects to prevent infinite loops
-$maxRedirects = 10
-$currentRedirect = 0
-$visitedUrls = @{}
-
-$currentUrl = $uri
-
-while ($currentRedirect -lt $maxRedirects) {
-    if ($visitedUrls.ContainsKey($currentUrl)) {
-        Write-Error "Redirect loop detected at URL: $currentUrl"
-        break
+# Initial request
+try {
+    $response = Invoke-WebRequest -Uri $uri -Method Get -Credential $cred -WebSession $session -MaximumRedirection 0
+    $redirectUrl = $response.Headers['Location']
+} catch [System.Net.WebException] {
+    if ($_.Exception.Response.Headers['Location']) {
+        $redirectUrl = $_.Exception.Response.Headers['Location']
+    } else {
+        throw "Failed to retrieve redirect URL."
     }
-    $visitedUrls[$currentUrl] = $true
+}
 
+# Sequential redirect handling
+for ($i = 0; $i -lt $redirectLimit; $i++) {
     try {
-        # Make the web request
-        $response = Invoke-WebRequest -Uri $currentUrl `
-            -Method Get `
-            -UserAgent "curl/123" `
-            -AllowUnencryptedAuthentication `
-            -NoProxy `
-            -WebSession $session `
-            -Credential $cred `
-            -Headers @{
-                Accept = "*/*"
-                "Accept-Encoding" = "gzip, deflate"
-            } `
-            -PreserveAuthorizationOnRedirect `
-            -MaximumRedirection 0
+        # Follow each redirect manually
+        Write-Host "Redirecting to $redirectUrl"
+        $response = Invoke-WebRequest -Uri $redirectUrl -Method Get -WebSession $session -MaximumRedirection 0
 
-        # Check for forms in the response
-        if ($response.ParsedHtml -and $response.ParsedHtml.getElementsByTagName('form').length -gt 0) {
-            $form = $response.Forms[0]
-            Write-Host "Form detected at URL: $currentUrl"
-
-            # You might need to fill in additional form fields here
-            # For example, if there are hidden fields that need specific values
-            # $form.Fields['fieldName'] = 'fieldValue'
-
-            # Submit the form
-            $response = Invoke-WebRequest -Uri ($form.Action) `
-                -Method Post `
-                -WebSession $session `
-                -Body $form.Fields `
-                -Headers @{
-                    Accept = "*/*"
-                    "Accept-Encoding" = "gzip, deflate"
-                }
-
-            # Assuming the form submission is successful, break the loop
-            break
-        }
-
-        # If there's a 'Location' header, follow the redirect
+        # Check if another Location header exists (indicating further redirects)
         if ($response.Headers['Location']) {
-            $currentUrl = $response.Headers['Location']
-            Write-Host "Redirecting to: $currentUrl"
-            $currentRedirect++
-            continue
+            $redirectUrl = $response.Headers['Location']
         } else {
-            # No more redirects, assume final response
+            # If no Location header, assume we have the final response
+            Write-Host "Final response received."
             break
         }
     } catch [System.Net.WebException] {
-        $resp = $_.Exception.Response
-        if ($resp -and $resp.Headers['Location']) {
-            $currentUrl = $resp.Headers['Location']
-            Write-Host "Redirecting to: $currentUrl"
-            $currentRedirect++
-            continue
+        if ($_.Exception.Response.Headers['Location']) {
+            $redirectUrl = $_.Exception.Response.Headers['Location']
         } else {
-            Write-Error "Request failed: $($_.Exception.Message)"
-            break
+            throw "Failed to retrieve redirect URL at step $i."
         }
     }
 }
 
-# Output the final response
+# Output final content or status
 if ($response) {
-    Write-Host "Final response received."
     Write-Host "Status Code: $($response.StatusCode)"
-    Write-Host "Content Length: $($response.RawContentLength)"
-    # Process the response content if needed
-    # Write-Host $response.Content
+    Write-Host "Content: $($response.Content)"
 } else {
-    Write-Error "Failed to retrieve a valid response."
+    Write-Error "Unable to retrieve a valid response after redirects."
 }
