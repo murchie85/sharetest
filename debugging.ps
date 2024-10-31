@@ -1,0 +1,14 @@
+# Test your credentials object
+$cred = New-Object System.Management.Automation.PSCredential($username, (ConvertTo-SecureString $password -AsPlainText -Force))
+
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+
+try {
+    $result = Invoke-WebRequest -Uri $first -UserAgent "curl/123" -AllowUnencryptedAuthentication -NoProxy -WebSession $s2 -Credential $cred -Headers @{ Accept = "*/*" } -PreserveAuthorizationOnRedirect -MaximumRedirection 0 -Verbose
+} catch {
+    Write-Host "Error details: $_"
+    Write-Host "Status code: $($_.Exception.Response.StatusCode)"
+    Write-Host "Status description: $($_.Exception.Response.StatusDescription)"
+}
