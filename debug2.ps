@@ -6,23 +6,25 @@ $cred = New-Object System.Management.Automation.PSCredential($username, $passwor
 # Initial URL
 $uri = 'REDACTED'
 
-# Create a single WebRequestSession to preserve cookies
-$webSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+# Create a single WebRequestSession to preserve cookies and tokens
+$session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
 
 # Set maximum redirects to prevent infinite loops
 $maxRedirects = 10
 $currentRedirect = 0
 $currentUrl = $uri
+$response = $null
 
 # Loop to handle redirects
 while ($currentRedirect -lt $maxRedirects) {
     try {
         # Make the web request
         $response = Invoke-WebRequest -Uri $currentUrl `
+            -Method Get `
             -UserAgent "curl/123" `
             -AllowUnencryptedAuthentication `
             -NoProxy `
-            -WebSession $webSession `
+            -WebSession $session `
             -Credential $cred `
             -Headers @{
                 Accept = "*/*"
@@ -31,24 +33,37 @@ while ($currentRedirect -lt $maxRedirects) {
             -PreserveAuthorizationOnRedirect `
             -MaximumRedirection 0
 
-        # If no exception, we have a final response
-        break
-    } catch [System.Net.WebException] {
-        $resp = $_.Exception.Response
-
-        # Check if it's a redirect
-        if ($resp -and ($resp.StatusCode -eq [System.Net.HttpStatusCode]::Found -or $resp.StatusCode -eq [System.Net.HttpStatusCode]::MovedPermanently)) {
-            $currentUrl = $resp.Headers['Location']
+        # Check if there's a 'Location' header in the response
+        if ($response.Headers['Location']) {
+            $currentUrl = $response.Headers['Location']
             Write-Host "Redirecting to: $currentUrl"
             $currentRedirect++
             continue
-        } elseif ($resp -and $resp.StatusCode -eq [System.Net.HttpStatusCode]::Unauthorized) {
-            # Handle 401 Unauthorized if needed
-            Write-Error "Authentication failed with status 401."
-            break
         } else {
-            # Other errors
-            Write-Error "Request failed with status $($resp.StatusCode): $($resp.StatusDescription)"
+            # No 'Location' header, assume final response
+            break
+        }
+    } catch {
+        # Handle exceptions
+        if ($_.Exception.Response) {
+            $resp = $_.Exception.Response
+            $headers = $resp.Headers
+            $location = $headers['Location']
+
+            if ($location) {
+                # We have a redirect, follow it
+                Write-Host "Redirecting to: $location"
+                $currentUrl = $location
+                $currentRedirect++
+                continue
+            } else {
+                # No Location header, cannot proceed
+                Write-Error "No Location header in exception response. Exception message: $($_.Exception.Message)"
+                break
+            }
+        } else {
+            # No Response in exception, cannot proceed
+            Write-Error "Exception occurred, but no Response. Exception message: $($_.Exception.Message)"
             break
         }
     }
@@ -56,8 +71,12 @@ while ($currentRedirect -lt $maxRedirects) {
 
 # Output the final response
 if ($response) {
-    Write-Host "Final response status: $($response.StatusCode)"
-    Write-Host "Final response content length: $($response.RawContentLength)"
+    Write-Host "Final response received."
+    Write-Host "Status Code: $($response.StatusCode)"
+    Write-Host "Content Length: $($response.RawContentLength)"
+    # You can process the response content here
+    # For example, to output the content:
+    # Write-Host $response.Content
 } else {
     Write-Error "Failed to retrieve a valid response."
 }
