@@ -1,186 +1,63 @@
-function Get-NewToken {
-    param (
-        [Parameter(Mandatory=$true)]
-        [System.Management.Automation.PSCredential]$Credential,
-        [Parameter(Mandatory=$true)]
-        [string]$AuthUrl
-    )
-    
-    try {
-        $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-        
-        # Initial authentication request - explicitly handle 302
-        try {
-            $response = Invoke-WebRequest -Uri $AuthUrl `
-                -Method Get `
-                -UserAgent "curl/7.88.1" `
-                -AllowUnencryptedAuthentication `
-                -NoProxy `
-                -WebSession $session `
-                -Credential $Credential `
-                -Headers @{
-                    Accept = "*/*"
-                    "Accept-Encoding" = "gzip, deflate"
-                } `
-                -MaximumRedirection 0
-        }
-        catch [System.Net.WebException] {
-            # Check if the exception is due to a 302 redirect
-            if ($_.Exception.Response.StatusCode -eq [System.Net.HttpStatusCode]::Found) {
-                $response = $_.Exception.Response
-                $redirectUrl = $response.Headers['Location']
-                Write-Host "Received redirect to: $redirectUrl"
-                
-                # Follow the redirect with the same session
-                $response = Invoke-WebRequest -Uri $redirectUrl `
-                    -Method Get `
-                    -UserAgent "curl/7.88.1" `
-                    -AllowUnencryptedAuthentication `
-                    -NoProxy `
-                    -WebSession $session `
-                    -Headers @{
-                        Accept = "*/*"
-                        "Accept-Encoding" = "gzip, deflate"
-                    }
-            }
-            else {
-                throw $_
-            }
-        }
-        
-        if ($null -eq $session) {
-            throw "Failed to create session"
-        }
-        
-        return @{
-            Session = $session
-            Response = $response
-            RedirectUrl = $redirectUrl
-        }
-    }
-    catch {
-        Write-Host "Full Error Details:"
-        Write-Host $_.Exception.Message
-        if ($_.Exception.Response) {
-            Write-Host "Status Code: $($_.Exception.Response.StatusCode)"
-            Write-Host "Status Description: $($_.Exception.Response.StatusDescription)"
-            Write-Host "Headers: $($_.Exception.Response.Headers | ConvertTo-Json)"
-        }
-        throw $_
-    }
-}
+# Define your credentials
+$username = "REDACTED"
+$password = ConvertTo-SecureString "REDACTED" -AsPlainText -Force
+$cred = New-Object System.Management.Automation.PSCredential($username, $password)
 
-function Invoke-AuthenticatedRequest {
-    param (
-        [Parameter(Mandatory=$true)]
-        [string]$Url,
-        [Parameter(Mandatory=$true)]
-        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
-        [Parameter(Mandatory=$true)]
-        [System.Management.Automation.PSCredential]$Credential,
-        [Parameter(Mandatory=$true)]
-        [string]$InitialAuthUrl,
-        [int]$RetryCount = 1
-    )
-    
-    try {
-        # Make request
-        try {
-            $response = Invoke-WebRequest -Uri $Url `
-                -Method Get `
-                -UserAgent "curl/7.88.1" `
-                -AllowUnencryptedAuthentication `
-                -NoProxy `
-                -WebSession $Session `
-                -Headers @{
-                    Accept = "*/*"
-                    "Accept-Encoding" = "gzip, deflate"
-                } `
-                -MaximumRedirection 0
-        }
-        catch [System.Net.WebException] {
-            if ($_.Exception.Response -and $_.Exception.Response.StatusCode -eq [System.Net.HttpStatusCode]::Found) {
-                $response = $_.Exception.Response
-                $redirectUrl = $response.Headers['Location']
-                Write-Host "Following redirect to: $redirectUrl"
-                
-                $response = Invoke-WebRequest -Uri $redirectUrl `
-                    -Method Get `
-                    -UserAgent "curl/7.88.1" `
-                    -AllowUnencryptedAuthentication `
-                    -NoProxy `
-                    -WebSession $Session `
-                    -Headers @{
-                        Accept = "*/*"
-                        "Accept-Encoding" = "gzip, deflate"
-                    }
-            }
-            else {
-                throw $_
-            }
-        }
-            
-        return $response
-    }
-    catch {
-        if ($RetryCount -gt 0 -and $_.Exception.Response.StatusCode -eq 401) {
-            Write-Host "Authentication failed, attempting refresh..."
-            
-            # Get new token
-            $newAuth = Get-NewToken -Credential $Credential -AuthUrl $InitialAuthUrl
-            
-            # Retry with new session
-            return Invoke-AuthenticatedRequest `
-                -Url $Url `
-                -Session $newAuth.Session `
-                -Credential $Credential `
-                -InitialAuthUrl $InitialAuthUrl `
-                -RetryCount ($RetryCount - 1)
-        }
-        
-        Write-Host "Error Details:"
-        Write-Host $_.Exception.Message
-        if ($_.Exception.Response) {
-            Write-Host "Status Code: $($_.Exception.Response.StatusCode)"
-            Write-Host "Status Description: $($_.Exception.Response.StatusDescription)"
-        }
-        throw $_
-    }
-}
+# Initial URL
+$uri = 'REDACTED'
 
-# Example usage
-try {
-    # Define your credentials and initial URL
-    $username = "your_username"
-    $password = "your_password"
-    $firstUrl = "https://your-authentication-url.com"
-    
-    # Create credential object
-    $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-    $cred = New-Object System.Management.Automation.PSCredential($username, $securePass)
-    
-    Write-Host "Performing initial authentication..."
-    $auth = Get-NewToken -Credential $cred -AuthUrl $firstUrl
-    $session = $auth.Session
-    
-    Write-Host "Initial auth complete, redirect URL: $($auth.RedirectUrl)"
-    
-    if ($auth.RedirectUrl) {
-        $response2 = Invoke-AuthenticatedRequest `
-            -Url $auth.RedirectUrl `
-            -Session $session `
+# Create a single WebRequestSession to preserve cookies
+$webSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+
+# Set maximum redirects to prevent infinite loops
+$maxRedirects = 10
+$currentRedirect = 0
+$currentUrl = $uri
+
+# Loop to handle redirects
+while ($currentRedirect -lt $maxRedirects) {
+    try {
+        # Make the web request
+        $response = Invoke-WebRequest -Uri $currentUrl `
+            -UserAgent "curl/123" `
+            -AllowUnencryptedAuthentication `
+            -NoProxy `
+            -WebSession $webSession `
             -Credential $cred `
-            -InitialAuthUrl $firstUrl
-                
-        Write-Host "Final response status: $($response2.StatusCode)"
-        Write-Host "Final response content length: $($response2.RawContentLength)"
+            -Headers @{
+                Accept = "*/*"
+                "Accept-Encoding" = "gzip, deflate"
+            } `
+            -PreserveAuthorizationOnRedirect `
+            -MaximumRedirection 0
+
+        # If no exception, we have a final response
+        break
+    } catch [System.Net.WebException] {
+        $resp = $_.Exception.Response
+
+        # Check if it's a redirect
+        if ($resp -and ($resp.StatusCode -eq [System.Net.HttpStatusCode]::Found -or $resp.StatusCode -eq [System.Net.HttpStatusCode]::MovedPermanently)) {
+            $currentUrl = $resp.Headers['Location']
+            Write-Host "Redirecting to: $currentUrl"
+            $currentRedirect++
+            continue
+        } elseif ($resp -and $resp.StatusCode -eq [System.Net.HttpStatusCode]::Unauthorized) {
+            # Handle 401 Unauthorized if needed
+            Write-Error "Authentication failed with status 401."
+            break
+        } else {
+            # Other errors
+            Write-Error "Request failed with status $($resp.StatusCode): $($resp.StatusDescription)"
+            break
+        }
     }
 }
-catch {
-    Write-Error "Script failed: $($_.Exception.Message)"
-    if ($_.Exception.Response) {
-        Write-Error "Status Code: $($_.Exception.Response.StatusCode)"
-        Write-Error "Status Description: $($_.Exception.Response.StatusDescription)"
-    }
-    throw $_
+
+# Output the final response
+if ($response) {
+    Write-Host "Final response status: $($response.StatusCode)"
+    Write-Host "Final response content length: $($response.RawContentLength)"
+} else {
+    Write-Error "Failed to retrieve a valid response."
 }
