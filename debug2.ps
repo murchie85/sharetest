@@ -1,0 +1,155 @@
+# Authentication and Request Handler Script
+
+function Test-TokenExpiration {
+    param (
+        [Parameter(Mandatory=$true)]
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
+        [Parameter(Mandatory=$true)]
+        [string]$TestUrl
+    )
+    try {
+        # Make a test request using the session
+        $response = Invoke-WebRequest -Uri $TestUrl `
+            -Method HEAD `
+            -WebSession $Session `
+            -UserAgent "curl/123" `
+            -Headers @{ Accept = "*/*" } `
+            -AllowUnencryptedAuthentication `
+            -NoProxy `
+            -ErrorAction Stop
+        
+        return $true  # Token is valid
+    }
+    catch {
+        # Check if the error is authentication-related
+        if ($_.Exception.Response.StatusCode -eq 401 -or 
+            $_.Exception.Response.StatusCode -eq 302) {
+            return $false  # Token is expired
+        }
+        # Rethrow other types of errors
+        throw
+    }
+}
+
+function Get-NewToken {
+    param (
+        [Parameter(Mandatory=$true)]
+        [System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory=$true)]
+        [string]$AuthUrl
+    )
+    
+    try {
+        $session = $null
+        
+        # Perform fresh authentication
+        $response = Invoke-WebRequest -Uri $AuthUrl `
+            -UserAgent "curl/123" `
+            -AllowUnencryptedAuthentication `
+            -NoProxy `
+            -SessionVariable session `
+            -Credential $Credential `
+            -Headers @{ Accept = "*/*" } `
+            -PreserveAuthorizationOnRedirect `
+            -MaximumRedirection 0 `
+            -ErrorAction Stop
+        
+        if ($null -eq $session) {
+            throw "Failed to create new session"
+        }
+        
+        return @{
+            Session = $session
+            Response = $response
+        }
+    }
+    catch {
+        Write-Error "Failed to obtain new token: $($_.Exception.Message)"
+        throw
+    }
+}
+
+function Invoke-AuthenticatedRequest {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$Url,
+        [Parameter(Mandatory=$true)]
+        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
+        [Parameter(Mandatory=$true)]
+        [System.Management.Automation.PSCredential]$Credential,
+        [Parameter(Mandatory=$true)]
+        [string]$InitialAuthUrl,
+        [int]$RetryCount = 1
+    )
+    
+    try {
+        # First attempt
+        $response = Invoke-WebRequest -Uri $Url `
+            -UserAgent "curl/123" `
+            -AllowUnencryptedAuthentication `
+            -NoProxy `
+            -WebSession $Session `
+            -Headers @{ Accept = "*/*" } `
+            -PreserveAuthorizationOnRedirect `
+            -MaximumRedirection 0 `
+            -ErrorAction Stop
+            
+        return $response
+    }
+    catch {
+        if ($RetryCount -gt 0 -and 
+            ($_.Exception.Response.StatusCode -eq 401 -or 
+             $_.Exception.Response.StatusCode -eq 302)) {
+            
+            Write-Host "Token appears expired, attempting refresh..."
+            
+            # Get new token
+            $newAuth = Get-NewToken -Credential $Credential -AuthUrl $InitialAuthUrl
+            
+            # Retry the request with new session
+            return Invoke-AuthenticatedRequest `
+                -Url $Url `
+                -Session $newAuth.Session `
+                -Credential $Credential `
+                -InitialAuthUrl $InitialAuthUrl `
+                -RetryCount ($RetryCount - 1)
+        }
+        
+        throw
+    }
+}
+
+# Main execution block
+try {
+    # Initialize parameters
+    $username = "redacted"  # Replace with your username
+    $password = "redacted"  # Replace with your password
+    $firstUrl = $first     # Replace with your initial URL
+    
+    # Create credential object
+    $securePass = ConvertTo-SecureString $password -AsPlainText -Force
+    $cred = New-Object System.Management.Automation.PSCredential($username, $securePass)
+    
+    # Initial authentication
+    $auth = Get-NewToken -Credential $cred -AuthUrl $firstUrl
+    $session = $auth.Session
+    
+    # Get second URL from initial response
+    $secondUrl = $auth.Response.Headers.Location.OriginalString
+    Write-Host "Second URL: $secondUrl"
+    
+    # Make second request with automatic token refresh if needed
+    $response2 = Invoke-AuthenticatedRequest `
+        -Url $secondUrl `
+        -Session $session `
+        -Credential $cred `
+        -InitialAuthUrl $firstUrl
+    
+    # Continue with additional requests as needed...
+    
+}
+catch {
+    Write-Error "Script failed: $($_.Exception.Message)"
+    Write-Error $_.Exception
+    throw
+}
