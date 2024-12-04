@@ -37,3 +37,29 @@ Get-ChildItem -Path "Cert:\CurrentUser\My" | Select-Object Subject, Thumbprint, 
 
 # Once we have the thumbprint, we can get the cert directly like this:
 $cert = Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object { $_.Thumbprint -eq "PASTE_THUMBPRINT_HERE" }
+
+
+
+
+#====CERT AND KEY
+
+```ps
+# First load both files
+$certPath = "path\to\companyname.cert"
+$keyPath = "path\to\companyname.key"
+
+# Create an X509Certificate2 object with both cert and key
+$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath)
+
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $response = Invoke-WebRequest -Uri "https://your-dev-server-url/whoami" `
+        -Certificate $cert `
+        -Verbose
+    $response.Content
+} catch {
+    Write-Host "Error: $($_.Exception.Message)"
+    Write-Host "Inner Error: $($_.Exception.InnerException.Message)"
+}
+
+```
