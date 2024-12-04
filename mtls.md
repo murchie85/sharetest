@@ -77,5 +77,24 @@ openssl pkcs12 -export -out client.pfx -inkey companyname.key -in companyname.ce
 
 
 
+# Import the PFX
+$cert = Import-PfxCertificate -FilePath "client.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+
+# Show the thumbprint (save this for later use)
+Write-Host "Certificate Thumbprint: $($cert.Thumbprint)"
+
+
+$certThumbprint = "PASTE_THUMBPRINT_HERE"
+$cert = Get-ChildItem -Path "Cert:\CurrentUser\My\$certThumbprint"
+
+# Make the request
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $response = Invoke-WebRequest -Uri "https://your-dev-server-url/whoami" -Certificate $cert -Verbose
+    $response.Content
+} catch {
+    Write-Host "Error: $($_.Exception.Message)"
+    Write-Host "Inner Error: $($_.Exception.InnerException.Message)"
+}
 
 ```
