@@ -16,3 +16,7 @@ $cert | Format-List Subject, HasPrivateKey, NotAfter, EnhancedKeyUsageList
 
 # List all certs with their full details
 Get-ChildItem -Path "Cert:\CurrentUser\My" | Select-Object Subject, Thumbprint, NotAfter | Format-Table -AutoSize
+
+
+# Once we have the thumbprint, we can get the cert directly like this:
+$cert = Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object { $_.Thumbprint -eq "PASTE_THUMBPRINT_HERE" }
