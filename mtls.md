@@ -63,3 +63,19 @@ try {
 }
 
 ```
+
+create pfx from cert and key file 
+
+```ps
+
+# Set a password for the PFX (you'll need this for import)
+$pfxPassword = "test!"
+$securePassword = ConvertTo-SecureString -String $pfxPassword -Force -AsPlainText
+
+# Create PFX using OpenSSL (run this from the directory with your files)
+openssl pkcs12 -export -out client.pfx -inkey companyname.key -in companyname.cert -password pass:$pfxPassword
+
+
+
+
+```
