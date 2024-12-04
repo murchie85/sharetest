@@ -2,6 +2,19 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 
+
+```ps
+try {
+    $response = Invoke-WebRequest -Uri "https://your-dev-server-url/whoami" -Certificate $cert -Verbose
+    $response.Content
+} catch {
+    Write-Host "Error: $($_.Exception.Message)"
+    Write-Host "Inner Error: $($_.Exception.InnerException.Message)"
+}
+
+```
+
+
 # Create a self-signed certificate
 $Cert = New-SelfSignedCertificate -DnsName "keyfactor" -CertStoreLocation Cert:\CurrentUser\My -KeyExportPolicy Exportable
 
