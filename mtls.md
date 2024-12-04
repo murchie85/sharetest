@@ -13,3 +13,6 @@ Export-PfxCertificate -Cert $Cert -FilePath "ms.pfx" -Password $Password
 
 $cert = Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object { $_.Subject -like "*adam.mcmurchie@mycompany.com*" }
 $cert | Format-List Subject, HasPrivateKey, NotAfter, EnhancedKeyUsageList
+
+# List all certs with their full details
+Get-ChildItem -Path "Cert:\CurrentUser\My" | Select-Object Subject, Thumbprint, NotAfter | Format-Table -AutoSize
