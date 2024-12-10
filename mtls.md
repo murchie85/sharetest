@@ -2,30 +2,54 @@
 # connecting to api with certt 
 
 ```c#
-public string MakeApiCall(string url, string certPath, string certPassword)
+public string MakeApiCall(string url, string certPath, string certPassword, ILogger logger, string certificateStore)
 {
-    // Load the certificate
-    var certificate = new X509Certificate2(
-        certPath,
-        certPassword,
-        X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable
-    );
+    LogHandlerCommon.MethodEntry(logger, certificateStore, "MakeApiCall");
+    LogHandlerCommon.Info(logger, certificateStore, $"Loading certificate from path: '{certPath}'");
 
-    // Create handler with certificate
-    var handler = new HttpClientHandler();
-    handler.ClientCertificates.Add(certificate);
-
-    // Create client and make request
-    using (var client = new HttpClient(handler))
+    try
     {
-        // Make the request and wait for result
-        var response = client.GetAsync(url).Result;
+        // Load the certificate
+        var certificate = new X509Certificate2(
+            certPath,
+            certPassword,
+            X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable
+        );
         
-        // Ensure we got success status code
-        response.EnsureSuccessStatusCode();
+        LogHandlerCommon.Info(logger, certificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
+
+        // Create handler with certificate
+        var handler = new HttpClientHandler();
+        handler.ClientCertificates.Add(certificate);
         
-        // Read and return content
-        return response.Content.ReadAsStringAsync().Result;
+        LogHandlerCommon.Info(logger, certificateStore, $"Making API call to: '{url}'");
+
+        // Create client and make request
+        using (var client = new HttpClient(handler))
+        {
+            // Make the request and wait for result
+            var response = client.GetAsync(url).Result;
+            
+            LogHandlerCommon.Info(logger, certificateStore, 
+                $"Received response. Status: {response.StatusCode}, ReasonPhrase: '{response.ReasonPhrase}'");
+            
+            // Ensure we got success status code
+            response.EnsureSuccessStatusCode();
+            
+            var content = response.Content.ReadAsStringAsync().Result;
+            LogHandlerCommon.Info(logger, certificateStore, "Successfully read response content");
+            
+            return content;
+        }
+    }
+    catch (Exception ex)
+    {
+        LogHandlerCommon.Info(logger, certificateStore, $"Error in MakeApiCall: {ex.Message}");
+        if (ex.InnerException != null)
+        {
+            LogHandlerCommon.Info(logger, certificateStore, $"Inner Exception: {ex.InnerException.Message}");
+        }
+        throw; // Re-throw to maintain original stack trace
     }
 }
 ```
