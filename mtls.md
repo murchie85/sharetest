@@ -1,4 +1,38 @@
 
+# connecting to api with certt 
+
+```c#
+public string MakeApiCall(string url, string certPath, string certPassword)
+{
+    // Load the certificate
+    var certificate = new X509Certificate2(
+        certPath,
+        certPassword,
+        X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable
+    );
+
+    // Create handler with certificate
+    var handler = new HttpClientHandler();
+    handler.ClientCertificates.Add(certificate);
+
+    // Create client and make request
+    using (var client = new HttpClient(handler))
+    {
+        // Make the request and wait for result
+        var response = client.GetAsync(url).Result;
+        
+        // Ensure we got success status code
+        response.EnsureSuccessStatusCode();
+        
+        // Read and return content
+        return response.Content.ReadAsStringAsync().Result;
+    }
+}
+```
+
+
+
+ls
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 
