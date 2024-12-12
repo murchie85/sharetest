@@ -1,4 +1,85 @@
 
+# post
+
+```c#
+
+// Convert base64 to bytes
+byte[] fileBytes = Convert.FromBase64String(certData);
+string fileName = "Common-test123.p12";
+
+var result = MakeApiCall(
+    "https://your-api-url.com",
+    @"C:\path\to\cert.pfx",
+    "test",
+    fileBytes,
+    fileName,
+    logger,
+    certificateStore
+);
+
+
+
+
+public string MakeApiCall(string url, string certPath, string certPassword, byte[] fileBytes, string fileName, ILogger logger, string certificateStore)
+{
+    LogHandlerCommon.MethodEntry(logger, certificateStore, "MakeApiCall");
+    LogHandlerCommon.Info(logger, certificateStore, $"Loading certificate from path: '{certPath}'");
+
+    try
+    {
+        // Load the certificate
+        var certificate = new X509Certificate2(
+            certPath,
+            certPassword,
+            X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable
+        );
+        
+        LogHandlerCommon.Info(logger, certificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
+
+        // Create handler with certificate
+        var handler = new HttpClientHandler();
+        handler.ClientCertificates.Add(certificate);
+        
+        // Create the multipart form content
+        using (var multipartContent = new MultipartFormDataContent())
+        using (var byteArrayContent = new ByteArrayContent(fileBytes))
+        {
+            byteArrayContent.Headers.ContentType = new MediaTypeHeaderValue("multipart/form-data");
+            multipartContent.Add(byteArrayContent, "filedata", fileName);
+
+            LogHandlerCommon.Info(logger, certificateStore, $"Making POST API call to: '{url}' with file: '{fileName}'");
+
+            // Create client and make request
+            using (var client = new HttpClient(handler))
+            {
+                // Make the POST request and wait for result
+                var response = client.PostAsync(url, multipartContent).Result;
+                
+                LogHandlerCommon.Info(logger, certificateStore, 
+                    $"Received response. Status: {response.StatusCode}, ReasonPhrase: '{response.ReasonPhrase}'");
+                
+                // Ensure we got success status code
+                response.EnsureSuccessStatusCode();
+                
+                var content = response.Content.ReadAsStringAsync().Result;
+                LogHandlerCommon.Info(logger, certificateStore, "Successfully read response content");
+                
+                return content;
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogHandlerCommon.Info(logger, certificateStore, $"Error in MakeApiCall: {ex.Message}");
+        if (ex.InnerException != null)
+        {
+            LogHandlerCommon.Info(logger, certificateStore, $"Inner Exception: {ex.InnerException.Message}");
+        }
+        throw; // Re-throw to maintain original stack trace
+    }
+}
+
+```
 # connecting to api with certt 
 
 ```c#
