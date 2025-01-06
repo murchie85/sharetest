@@ -1,3 +1,57 @@
+# DELETE
+
+```c#
+public void MakeDeleteApiCall(string url, string certPath, string certPassword, ILogger logger, string certificateStore)
+{
+    LogHandlerCommon.MethodEntry(logger, certificateStore, "MakeDeleteApiCall");
+    LogHandlerCommon.Info(logger, certificateStore, $"Loading certificate from path: '{certPath}'");
+
+    try
+    {
+        // Load the certificate
+        var certificate = new X509Certificate2(
+            certPath,
+            certPassword,
+            X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable
+        );
+        
+        LogHandlerCommon.Info(logger, certificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
+
+        // Create handler with certificate
+        var handler = new HttpClientHandler();
+        handler.ClientCertificates.Add(certificate);
+        
+        LogHandlerCommon.Info(logger, certificateStore, $"Making DELETE call to: '{url}'");
+
+        // Create client and make request
+        using (var client = new HttpClient(handler))
+        {
+            // Make the DELETE request and wait for result
+            var response = client.DeleteAsync(url).Result;
+            
+            LogHandlerCommon.Info(logger, certificateStore, 
+                $"Received response. Status: {response.StatusCode}, ReasonPhrase: '{response.ReasonPhrase}'");
+            
+            // Ensure we got success status code
+            response.EnsureSuccessStatusCode();
+            
+            var content = response.Content.ReadAsStringAsync().Result;
+            LogHandlerCommon.Info(logger, certificateStore, $"Response content: {content}");
+        }
+    }
+    catch (Exception ex)
+    {
+        LogHandlerCommon.Info(logger, certificateStore, $"Error in MakeDeleteApiCall: {ex.Message}");
+        if (ex.InnerException != null)
+        {
+            LogHandlerCommon.Info(logger, certificateStore, $"Inner Exception: {ex.InnerException.Message}");
+        }
+        throw;
+    }
+}
+```
+
+
 
 # post
 
