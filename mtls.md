@@ -1,55 +1,53 @@
 # DELETE
 
 ```c#
-public void MakeDeleteApiCall(string url, string certPath, string certPassword, ILogger logger, string CertificateStore)
+public string DeleteToken(string token)
 {
-    LogHandlerCommon.MethodEntry(logger, CertificateStore, "MakeDeleteApiCall");
-    LogHandlerCommon.Info(logger, CertificateStore, $"Loading certificate from path: '{certPath}'");
+    LogHandlerCommon.MethodEntry(logger, CertificateStore, "DeleteToken");
+    LogHandlerCommon.Info(logger, CertificateStore, $"Preparing to delete token from {CertificateStore.ClientMachine}");
 
     try
     {
-        // Load the certificate
-        var certificate = new X509Certificate2(
-            certPath,
-            certPassword,
-            X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable
-        );
-        
-        LogHandlerCommon.Info(logger, CertificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
-
-        // Create handler with certificate
+        // Create handler
         var handler = new HttpClientHandler();
-        handler.ClientCertificates.Add(certificate);
+        if (IgnoreSSLWarning)
+        {
+            handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+        }
         
-        LogHandlerCommon.Info(logger, CertificateStore, $"Making DELETE call to: '{url}'");
-
-        // Create client and make request
+        // Create client and setup auth header
         using (var client = new HttpClient(handler))
         {
-            // Make the DELETE request and wait for result
-            var response = client.DeleteAsync(url).Result;
+            client.DefaultRequestHeaders.Add("X-F5-Auth-Token", token);
+            
+            LogHandlerCommon.Info(logger, CertificateStore, "Making DELETE request to token endpoint");
+            
+            // Make the DELETE request to the token endpoint
+            var response = client.DeleteAsync($"https://{CertificateStore.ClientMachine}/mgmt/shared/authz/tokens/{token}").Result;
             
             LogHandlerCommon.Info(logger, CertificateStore, 
                 $"Received response. Status: {response.StatusCode}, ReasonPhrase: '{response.ReasonPhrase}'");
             
-            // Ensure we got success status code
+            // Ensure success
             response.EnsureSuccessStatusCode();
             
             var content = response.Content.ReadAsStringAsync().Result;
             LogHandlerCommon.Info(logger, CertificateStore, $"Response content: {content}");
+
+            LogHandlerCommon.MethodExit(logger, CertificateStore, "DeleteToken");
+            return content;
         }
     }
     catch (Exception ex)
     {
-        LogHandlerCommon.Info(logger, CertificateStore, $"Error in MakeDeleteApiCall: {ex.Message}");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Error in DeleteToken: {ex.Message}");
         if (ex.InnerException != null)
         {
             LogHandlerCommon.Info(logger, CertificateStore, $"Inner Exception: {ex.InnerException.Message}");
         }
         throw;
     }
-}
-```
+}```
 
 
 
