@@ -1,10 +1,10 @@
 # DELETE
 
 ```c#
-public void MakeDeleteApiCall(string url, string certPath, string certPassword, ILogger logger, string certificateStore)
+public void MakeDeleteApiCall(string url, string certPath, string certPassword, ILogger logger, string CertificateStore)
 {
-    LogHandlerCommon.MethodEntry(logger, certificateStore, "MakeDeleteApiCall");
-    LogHandlerCommon.Info(logger, certificateStore, $"Loading certificate from path: '{certPath}'");
+    LogHandlerCommon.MethodEntry(logger, CertificateStore, "MakeDeleteApiCall");
+    LogHandlerCommon.Info(logger, CertificateStore, $"Loading certificate from path: '{certPath}'");
 
     try
     {
@@ -15,13 +15,13 @@ public void MakeDeleteApiCall(string url, string certPath, string certPassword, 
             X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable
         );
         
-        LogHandlerCommon.Info(logger, certificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
 
         // Create handler with certificate
         var handler = new HttpClientHandler();
         handler.ClientCertificates.Add(certificate);
         
-        LogHandlerCommon.Info(logger, certificateStore, $"Making DELETE call to: '{url}'");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Making DELETE call to: '{url}'");
 
         // Create client and make request
         using (var client = new HttpClient(handler))
@@ -29,22 +29,22 @@ public void MakeDeleteApiCall(string url, string certPath, string certPassword, 
             // Make the DELETE request and wait for result
             var response = client.DeleteAsync(url).Result;
             
-            LogHandlerCommon.Info(logger, certificateStore, 
+            LogHandlerCommon.Info(logger, CertificateStore, 
                 $"Received response. Status: {response.StatusCode}, ReasonPhrase: '{response.ReasonPhrase}'");
             
             // Ensure we got success status code
             response.EnsureSuccessStatusCode();
             
             var content = response.Content.ReadAsStringAsync().Result;
-            LogHandlerCommon.Info(logger, certificateStore, $"Response content: {content}");
+            LogHandlerCommon.Info(logger, CertificateStore, $"Response content: {content}");
         }
     }
     catch (Exception ex)
     {
-        LogHandlerCommon.Info(logger, certificateStore, $"Error in MakeDeleteApiCall: {ex.Message}");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Error in MakeDeleteApiCall: {ex.Message}");
         if (ex.InnerException != null)
         {
-            LogHandlerCommon.Info(logger, certificateStore, $"Inner Exception: {ex.InnerException.Message}");
+            LogHandlerCommon.Info(logger, CertificateStore, $"Inner Exception: {ex.InnerException.Message}");
         }
         throw;
     }
@@ -68,16 +68,16 @@ var result = MakeApiCall(
     fileBytes,
     fileName,
     logger,
-    certificateStore
+    CertificateStore
 );
 
 
 
 
-public string MakeApiCall(string url, string certPath, string certPassword, byte[] fileBytes, string fileName, ILogger logger, string certificateStore)
+public string MakeApiCall(string url, string certPath, string certPassword, byte[] fileBytes, string fileName, ILogger logger, string CertificateStore)
 {
-    LogHandlerCommon.MethodEntry(logger, certificateStore, "MakeApiCall");
-    LogHandlerCommon.Info(logger, certificateStore, $"Loading certificate from path: '{certPath}'");
+    LogHandlerCommon.MethodEntry(logger, CertificateStore, "MakeApiCall");
+    LogHandlerCommon.Info(logger, CertificateStore, $"Loading certificate from path: '{certPath}'");
 
     try
     {
@@ -88,7 +88,7 @@ public string MakeApiCall(string url, string certPath, string certPassword, byte
             X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable
         );
         
-        LogHandlerCommon.Info(logger, certificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
 
         // Create handler with certificate
         var handler = new HttpClientHandler();
@@ -101,7 +101,7 @@ public string MakeApiCall(string url, string certPath, string certPassword, byte
             byteArrayContent.Headers.ContentType = new MediaTypeHeaderValue("multipart/form-data");
             multipartContent.Add(byteArrayContent, "filedata", fileName);
 
-            LogHandlerCommon.Info(logger, certificateStore, $"Making POST API call to: '{url}' with file: '{fileName}'");
+            LogHandlerCommon.Info(logger, CertificateStore, $"Making POST API call to: '{url}' with file: '{fileName}'");
 
             // Create client and make request
             using (var client = new HttpClient(handler))
@@ -109,14 +109,14 @@ public string MakeApiCall(string url, string certPath, string certPassword, byte
                 // Make the POST request and wait for result
                 var response = client.PostAsync(url, multipartContent).Result;
                 
-                LogHandlerCommon.Info(logger, certificateStore, 
+                LogHandlerCommon.Info(logger, CertificateStore, 
                     $"Received response. Status: {response.StatusCode}, ReasonPhrase: '{response.ReasonPhrase}'");
                 
                 // Ensure we got success status code
                 response.EnsureSuccessStatusCode();
                 
                 var content = response.Content.ReadAsStringAsync().Result;
-                LogHandlerCommon.Info(logger, certificateStore, "Successfully read response content");
+                LogHandlerCommon.Info(logger, CertificateStore, "Successfully read response content");
                 
                 return content;
             }
@@ -124,10 +124,10 @@ public string MakeApiCall(string url, string certPath, string certPassword, byte
     }
     catch (Exception ex)
     {
-        LogHandlerCommon.Info(logger, certificateStore, $"Error in MakeApiCall: {ex.Message}");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Error in MakeApiCall: {ex.Message}");
         if (ex.InnerException != null)
         {
-            LogHandlerCommon.Info(logger, certificateStore, $"Inner Exception: {ex.InnerException.Message}");
+            LogHandlerCommon.Info(logger, CertificateStore, $"Inner Exception: {ex.InnerException.Message}");
         }
         throw; // Re-throw to maintain original stack trace
     }
@@ -137,10 +137,10 @@ public string MakeApiCall(string url, string certPath, string certPassword, byte
 # connecting to api with certt 
 
 ```c#
-public string MakeApiCall(string url, string certPath, string certPassword, ILogger logger, string certificateStore)
+public string MakeApiCall(string url, string certPath, string certPassword, ILogger logger, string CertificateStore)
 {
-    LogHandlerCommon.MethodEntry(logger, certificateStore, "MakeApiCall");
-    LogHandlerCommon.Info(logger, certificateStore, $"Loading certificate from path: '{certPath}'");
+    LogHandlerCommon.MethodEntry(logger, CertificateStore, "MakeApiCall");
+    LogHandlerCommon.Info(logger, CertificateStore, $"Loading certificate from path: '{certPath}'");
 
     try
     {
@@ -151,13 +151,13 @@ public string MakeApiCall(string url, string certPath, string certPassword, ILog
             X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable
         );
         
-        LogHandlerCommon.Info(logger, certificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Certificate loaded successfully. Thumbprint: '{certificate.Thumbprint}'");
 
         // Create handler with certificate
         var handler = new HttpClientHandler();
         handler.ClientCertificates.Add(certificate);
         
-        LogHandlerCommon.Info(logger, certificateStore, $"Making API call to: '{url}'");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Making API call to: '{url}'");
 
         // Create client and make request
         using (var client = new HttpClient(handler))
@@ -165,24 +165,24 @@ public string MakeApiCall(string url, string certPath, string certPassword, ILog
             // Make the request and wait for result
             var response = client.GetAsync(url).Result;
             
-            LogHandlerCommon.Info(logger, certificateStore, 
+            LogHandlerCommon.Info(logger, CertificateStore, 
                 $"Received response. Status: {response.StatusCode}, ReasonPhrase: '{response.ReasonPhrase}'");
             
             // Ensure we got success status code
             response.EnsureSuccessStatusCode();
             
             var content = response.Content.ReadAsStringAsync().Result;
-            LogHandlerCommon.Info(logger, certificateStore, "Successfully read response content");
+            LogHandlerCommon.Info(logger, CertificateStore, "Successfully read response content");
             
             return content;
         }
     }
     catch (Exception ex)
     {
-        LogHandlerCommon.Info(logger, certificateStore, $"Error in MakeApiCall: {ex.Message}");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Error in MakeApiCall: {ex.Message}");
         if (ex.InnerException != null)
         {
-            LogHandlerCommon.Info(logger, certificateStore, $"Inner Exception: {ex.InnerException.Message}");
+            LogHandlerCommon.Info(logger, CertificateStore, $"Inner Exception: {ex.InnerException.Message}");
         }
         throw; // Re-throw to maintain original stack trace
     }
