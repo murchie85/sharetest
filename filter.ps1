@@ -1,6 +1,3 @@
-# Import the necessary module for working with Excel
-Import-Module -Name ImportExcel -ErrorAction Stop
-
 # Define the API endpoint
 $ApiUrl = "https://your-api-endpoint.com/endpoint"
 
@@ -23,10 +20,10 @@ foreach ($item in $response) {
     }
 }
 
-# Define the Excel file path
-$ExcelFilePath = "C:\path\to\output.xlsx"
+# Define the CSV file path
+$CsvFilePath = "C:\\path\\to\\output.csv"
 
-# Export the processed data to an Excel file
-$ProcessedData | Export-Excel -Path $ExcelFilePath -AutoSize
+# Export the processed data to a CSV file
+$ProcessedData | Export-Csv -Path $CsvFilePath -NoTypeInformation -Force
 
-Write-Output "Data has been exported to $ExcelFilePath"
+Write-Output "Data has been exported to $CsvFilePath"
