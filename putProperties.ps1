@@ -151,12 +151,16 @@ $jsonBody = @'
     "IgnoreSSLWarning": { "value": "true" },
     "ServerUsername": { "value": { "SecretValue": "myF5User" } },
     "ServerPassword": { "value": { "SecretValue": "myF5Pass" } },
-    "UseSSL": { "value": "true" },
+    "ServerUseSSL": { "value": "true" },
     "cyberarkUsername": { "value": { "SecretValue": "myCyberUser" } },
     "cyberarkPassword": { "value": { "SecretValue": "myCyberPass" } }
   }
 }
 '@
+
+
+
+
 
 # Then call:
 Invoke-RestMethod -Method PUT `
@@ -167,3 +171,97 @@ Invoke-RestMethod -Method PUT `
         # Add auth here, e.g. "Authorization" = "Bearer <token>"
     } `
     -Body $jsonBody
+
+
+
+
+
+################################################################################
+# 1) GET the existing store
+################################################################################
+$ApiUrl   = "https://YourKeyfactor/KeyfactorAPI"
+$StoreId  = "00000000-1111-2222-3333-444444444444"
+
+$Headers  = @{
+    "X-Keyfactor-Requested-With" = "APIClient"
+    "Content-Type"               = "application/json"
+    # Add your auth, e.g. "Authorization" = "Bearer <token>" or use -UseDefaultCredentials below
+}
+
+$getUrl = "$ApiUrl/CertificateStores/$StoreId"
+$originalStore = Invoke-RestMethod -Method GET -Uri $getUrl -Headers $Headers -UseDefaultCredentials
+
+################################################################################
+# 2) Convert the existing store's .Properties string -> a PSObject
+################################################################################
+# Keyfactor in your environment apparently stores .Properties as a single JSON string.
+# So parse that string so we can modify specific fields without losing others.
+
+$propsObject = $originalStore.Properties | ConvertFrom-Json
+
+# If .Properties is empty or null, create a new hashtable so we can add fields.
+if (-not $propsObject) {
+    $propsObject = @{}
+}
+
+################################################################################
+# 3) Overwrite just the fields you want to change (or add).
+#    For secrets, we supply { "value": { "SecretValue": ... } }
+#    For booleans or strings, we supply { "value": "true"/"some string" }
+################################################################################
+
+# Example: Overwrite "ServerUsername" with a new secret
+$propsObject.ServerUsername = @{
+    value = @{
+        SecretValue = "myF5User"
+    }
+}
+
+# Example: Overwrite "ServerPassword" with a new secret
+$propsObject.ServerPassword = @{
+    value = @{
+        SecretValue = "myF5Pass"
+    }
+}
+
+# Example: Overwrite "cyberarkUsername" if needed
+$propsObject.cyberarkUsername = @{
+    value = @{
+        SecretValue = "myCyberArkUser"
+    }
+}
+
+# Example: Overwrite "cyberarkPassword"
+$propsObject.cyberarkPassword = @{
+    value = @{
+        SecretValue = "myCyberArkPass"
+    }
+}
+
+# If you also want to overwrite e.g. "ServerUseSsl" (bool = "true"/"false"):
+$propsObject.ServerUseSsl = @{
+    value = "true"
+}
+
+################################################################################
+# 4) Re-convert the updated properties object -> an escaped JSON string
+################################################################################
+$propertiesJsonString = $propsObject | ConvertTo-Json -Depth 10
+
+# This string will look something like:
+# "{ \"ServerUsername\": { \"value\": { \"SecretValue\": \"myF5User\" } }, \"ServerPassword\" : ... }"
+
+$originalStore.Properties = $propertiesJsonString
+
+################################################################################
+# 5) PUT the entire store object back.
+#    Convert the entire store to JSON (which includes Properties as a string),
+#    then call the API
+################################################################################
+$bodyJson = $originalStore | ConvertTo-Json -Depth 10
+
+$putUrl = "$ApiUrl/CertificateStores"
+$response = Invoke-RestMethod -Method PUT -Uri $putUrl -Body $bodyJson -Headers $Headers -UseDefaultCredentials
+
+Write-Host "PUT response:"
+$response
