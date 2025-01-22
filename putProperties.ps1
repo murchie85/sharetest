@@ -15,3 +15,13 @@ $originalStore = Invoke-RestMethod -Method GET -Uri $getUrl -Headers $Headers
 
 
 
+
+$propsAsJson = $originalStore.Properties | ConvertFrom-Json
+
+$putUrl = "$ApiUrl/CertificateStores"
+
+# Convert $originalStore to JSON. 
+# Make sure -Depth is large enough to handle nested objects.
+$bodyJson = $propsAsJson | ConvertTo-Json -Depth 10
+
+$updatedStore = Invoke-RestMethod -Method PUT -Uri $putUrl -Body $bodyJson -Headers $Headers
