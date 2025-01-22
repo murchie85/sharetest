@@ -133,7 +133,7 @@ $updatedStore
 
 
 
-
+$bodyString = @'
 {
   "Id": "00000000-1111-2222-3333-444444444444",
   "ClientMachine": "your-host-here",
@@ -144,7 +144,8 @@ $updatedStore
   "CreateIfMissing": false,
   "Properties": {
     "PrimaryNodeCheckRetryMax": {
-      "value": "4" 
+      "value": "4"
     }
   }
 }
+'@
