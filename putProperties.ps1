@@ -29,23 +29,21 @@ $updatedStore = Invoke-RestMethod -Method PUT -Uri $putUrl -Body $bodyJson -Head
 
 
 
-
 ################################################################################
 # Example Variables
 ################################################################################
-$apiUrl          = "https://YourKeyfactor/KeyfactorAPI"
-$storeId         = "11111111-2222-3333-4444-555555555555"  # The store's GUID
-$serverUsername  = "myServerUser"
-$serverPword     = "myServerPword"
-$cyberarkUname   = "myCyberArkUser"
-$cyberarkPword   = "myCyberArkPass"
+$apiUrl             = "https://YourKeyfactor/KeyfactorAPI"
+$storeId            = "11111111-2222-3333-4444-555555555555"  # The store's GUID
+$serverUsername     = "myServerUser"
+$serverPword        = "myServerPassword"
+$cyberarkUname      = "myCyberArkUser"
+$cyberarkPword      = "myCyberArkPassword"
 
 # Authentication headers
 $headers = @{
     "X-Keyfactor-Requested-With" = "APIClient"
     "Content-Type"               = "application/json"
-    # Add whatever auth is needed, e.g. Basic or Bearer:
-    # "Authorization"              = "Bearer <token>"
+    # Add whatever auth is needed, e.g. Basic or Bearer
 }
 
 ################################################################################
@@ -55,59 +53,74 @@ $getUrl        = "$apiUrl/CertificateStores/$storeId"
 $originalStore = Invoke-RestMethod -Method GET -Uri $getUrl -Headers $headers -UseDefaultCredentials
 
 ################################################################################
-# 2) Convert the store's Properties from JSON (string) -> PSObject
+# 2) Convert the store's 'Properties' from JSON (string) -> PSObject
 ################################################################################
 $propsObject = $originalStore.Properties | ConvertFrom-Json
 
 ################################################################################
-# 3) Wrap any simple string/bool properties in { value = ... } if needed
+# 3) Overwrite each property according to its type
+#
+#   - BOOLEANS: "true" or "false" strings under { "value": "..." }
+#   - STRINGS, MULTIPLE CHOICE: also pass them as { "value": "<string>" }
+#   - SECRETS: pass as { "value": { "SecretValue": "<secret>" } }
 ################################################################################
-foreach ($key in $propsObject.PSObject.Properties.Name) {
-    $val = $propsObject.$key
-    # If the property is just a string or bool, wrap it
-    if ($val -isnot [System.Collections.Hashtable] -and $val -isnot [PSCustomObject]) {
-        $propsObject.$key = @{ value = $val }
-    }
-}
 
-################################################################################
-# 4) Override the four credential fields with secret objects
-################################################################################
-# ServerUsername
-$propsObject.ServerUsername = @{
+# "Primary Node Online Required" (Bool)
+$propsObject.'Primary Node Online Required' = @{ value = "false" }
+
+# "Primary Node" (String)
+$propsObject.'Primary Node' = @{ value = "my-primary-node" }
+
+# "Primary Node Check Retry Wait Secs" (String)
+$propsObject.'Primary Node Check Retry Wait Secs' = @{ value = "120" }
+
+# "Primary Node Check Retry Max" (String)
+$propsObject.'Primary Node Check Retry Max' = @{ value = "3" }
+
+# "Version of F5" (MultipleChoice) - supply one valid choice, e.g. "v12" or "v13"
+$propsObject.'Version of F5' = @{ value = "v12" }
+
+# "Ignore SSL Warning" (Bool)
+$propsObject.'Ignore SSL Warning' = @{ value = "true" }
+
+# "Server Username" (Secret)
+$propsObject.'Server Username' = @{
     value = @{
         SecretValue = $serverUsername
     }
 }
 
-# ServerPassword
-$propsObject.ServerPassword = @{
+# "Server Password" (Secret)
+$propsObject.'Server Password' = @{
     value = @{
         SecretValue = $serverPword
     }
 }
 
-# cyberarkUsername
-$propsObject.cyberarkUsername = @{
+# "Use SSL" (Bool)
+$propsObject.'Use SSL' = @{ value = "true" }
+
+# "cyberark Username" (Secret)
+$propsObject.'cyberark Username' = @{
     value = @{
         SecretValue = $cyberarkUname
     }
 }
 
-# cyberarkPassword
-$propsObject.cyberarkPassword = @{
+# "cyberark Password" (Secret)
+$propsObject.'cyberark Password' = @{
     value = @{
         SecretValue = $cyberarkPword
     }
 }
 
 ################################################################################
-# 5) Put the updated properties back in the store object
+# 4) Put the updated 'Properties' back into the store object
 ################################################################################
 $originalStore.Properties = $propsObject
 
 ################################################################################
-# 6) Convert the entire store to JSON and PUT
+# 5) Convert the entire store to JSON and PUT
 ################################################################################
 $bodyJson = $originalStore | ConvertTo-Json -Depth 10
 
