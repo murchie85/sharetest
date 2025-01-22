@@ -132,20 +132,38 @@ Write-Host "Updated store result:"
 $updatedStore
 
 
-
-$bodyString = @'
+$jsonBody = @'
 {
   "Id": "00000000-1111-2222-3333-444444444444",
-  "ClientMachine": "your-host-here",
+  "ContainerId": 24,
+  "ClientMachine": "my-f5-lab.example.com",
   "StorePath": "Common",
   "CertStoreType": 117,
-  "AgentId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "AgentId": "aaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
   "Approved": true,
   "CreateIfMissing": false,
   "Properties": {
-    "PrimaryNodeCheckRetryMax": {
-      "value": "4"
-    }
+    "PrimaryNodeOnlineRequired": { "value": "false" },
+    "PrimaryNode": { "value": "myPrimaryNode" },
+    "PrimaryNodeCheckRetryWaitSecs": { "value": "120" },
+    "PrimaryNodeCheckRetryMax": { "value": "3" },
+    "F5Version": { "value": "v12" },
+    "IgnoreSSLWarning": { "value": "true" },
+    "ServerUsername": { "value": { "SecretValue": "myF5User" } },
+    "ServerPassword": { "value": { "SecretValue": "myF5Pass" } },
+    "UseSSL": { "value": "true" },
+    "cyberarkUsername": { "value": { "SecretValue": "myCyberUser" } },
+    "cyberarkPassword": { "value": { "SecretValue": "myCyberPass" } }
   }
 }
 '@
+
+# Then call:
+Invoke-RestMethod -Method PUT `
+    -Uri "https://<KeyfactorServer>/KeyfactorAPI/CertificateStores" `
+    -Headers @{
+        "X-Keyfactor-Requested-With" = "APIClient"
+        "Content-Type"               = "application/json"
+        # Add auth here, e.g. "Authorization" = "Bearer <token>"
+    } `
+    -Body $jsonBody
