@@ -30,42 +30,90 @@ $updatedStore = Invoke-RestMethod -Method PUT -Uri $putUrl -Body $bodyJson -Head
 
 
 
+################################################################################
+# Example Variables
+################################################################################
+$apiUrl          = "https://YourKeyfactor/KeyfactorAPI"
+$storeId         = "11111111-2222-3333-4444-555555555555"  # The store's GUID
+$serverUsername  = "myServerUser"
+$serverPword     = "myServerPword"
+$cyberarkUname   = "myCyberArkUser"
+$cyberarkPword   = "myCyberArkPass"
 
-
-# 1) GET the store into an object
-$originalStore = Invoke-RestMethod -Method GET -Uri "$apiUrl/CertificateStores/$storeId" -Headers $headers
-
-# 2) If $originalStore.Properties is a JSON string, parse it.
-#    After GET, it might be a simple string like:
-#      "Properties": "{\"ServerUseSsl\":\"true\"}"
-#    We want it to be a PSObject or Hashtable for easy manipulation.
-if ($originalStore.Properties -is [string]) {
-    # Convert that JSON string into an object
-    $propsObject = $originalStore.Properties | ConvertFrom-Json
-} else {
-    # It's already an object (some Keyfactor versions return an object directly).
-    $propsObject = $originalStore.Properties
+# Authentication headers
+$headers = @{
+    "X-Keyfactor-Requested-With" = "APIClient"
+    "Content-Type"               = "application/json"
+    # Add whatever auth is needed, e.g. Basic or Bearer:
+    # "Authorization"              = "Bearer <token>"
 }
 
-# 3) Wrap these properties in the { "value": ... } format if needed
-#    Because PUT requires them in that shape. 
+################################################################################
+# 1) GET the existing store
+################################################################################
+$getUrl        = "$apiUrl/CertificateStores/$storeId"
+$originalStore = Invoke-RestMethod -Method GET -Uri $getUrl -Headers $headers -UseDefaultCredentials
+
+################################################################################
+# 2) Convert the store's Properties from JSON (string) -> PSObject
+################################################################################
+$propsObject = $originalStore.Properties | ConvertFrom-Json
+
+################################################################################
+# 3) Wrap any simple string/bool properties in { value = ... } if needed
+################################################################################
 foreach ($key in $propsObject.PSObject.Properties.Name) {
     $val = $propsObject.$key
-    # If not already in the { value = ... } format, fix it
-    if ($val -isnot [hashtable] -and $val -isnot [PSCustomObject]) {
+    # If the property is just a string or bool, wrap it
+    if ($val -isnot [System.Collections.Hashtable] -and $val -isnot [PSCustomObject]) {
         $propsObject.$key = @{ value = $val }
     }
 }
 
-# 4) Update the specific property you wanted
-#    For example, set 'ServerUseSsl' to "false"
-$propsObject.ServerUseSsl.value = "false"
+################################################################################
+# 4) Override the four credential fields with secret objects
+################################################################################
+# ServerUsername
+$propsObject.ServerUsername = @{
+    value = @{
+        SecretValue = $serverUsername
+    }
+}
 
-#    Then put the updated properties back into the original store object
+# ServerPassword
+$propsObject.ServerPassword = @{
+    value = @{
+        SecretValue = $serverPword
+    }
+}
+
+# cyberarkUsername
+$propsObject.cyberarkUsername = @{
+    value = @{
+        SecretValue = $cyberarkUname
+    }
+}
+
+# cyberarkPassword
+$propsObject.cyberarkPassword = @{
+    value = @{
+        SecretValue = $cyberarkPword
+    }
+}
+
+################################################################################
+# 5) Put the updated properties back in the store object
+################################################################################
 $originalStore.Properties = $propsObject
 
-# 5) Convert the entire store to JSON
+################################################################################
+# 6) Convert the entire store to JSON and PUT
+################################################################################
 $bodyJson = $originalStore | ConvertTo-Json -Depth 10
 
-# 6) PUT the entire updated store record
-Invoke-RestMethod -Method PUT -Uri "$apiUrl/CertificateStores" -Headers $headers -Body $bodyJson
+$putUrl = "$apiUrl/CertificateStores"
+$updatedStore = Invoke-RestMethod -Method PUT -Uri $putUrl `
+    -Body $bodyJson -Headers $headers -UseDefaultCredentials
+
+Write-Host "Updated store result:"
+$updatedStore
