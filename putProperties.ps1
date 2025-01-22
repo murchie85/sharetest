@@ -130,3 +130,21 @@ $updatedStore = Invoke-RestMethod -Method PUT -Uri $putUrl `
 
 Write-Host "Updated store result:"
 $updatedStore
+
+
+
+
+{
+  "Id": "00000000-1111-2222-3333-444444444444",
+  "ClientMachine": "your-host-here",
+  "StorePath": "Common",
+  "CertStoreType": 117,
+  "AgentId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "Approved": true,
+  "CreateIfMissing": false,
+  "Properties": {
+    "PrimaryNodeCheckRetryMax": {
+      "value": "4" 
+    }
+  }
+}
