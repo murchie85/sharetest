@@ -8,13 +8,12 @@ var filtered = documents.EnumerateArray()
 
 
 
-
-var filtered = resultDoc.EnumerateArray()
-    .Where(doc => doc.GetProperty("clientMachine").GetString() == CertificateStore.ClientMachine);
-
-LogHandlerCommon.Info(logger, CertificateStore, $"Found matches: {filtered.Count()}");
-
-foreach (var doc in filtered)
+   
+foreach (var doc in resultDoc.EnumerateArray())
 {
-    LogHandlerCommon.Info(logger, CertificateStore, $"Match found: {doc}");
+    var clientMachine = doc.GetProperty("clientMachine").GetString();
+    var properties = doc.GetProperty("Properties").GetString();
+    
+    LogHandlerCommon.Info(logger, CertificateStore, 
+        $"Machine: {clientMachine}, Match: {clientMachine == CertificateStore.ClientMachine}");
 }
