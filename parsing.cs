@@ -8,7 +8,7 @@ var filtered = documents.EnumerateArray()
 
 
 
-   
+
 foreach (var doc in resultDoc.EnumerateArray())
 {
     var clientMachine = doc.GetProperty("clientMachine").GetString();
@@ -16,4 +16,18 @@ foreach (var doc in resultDoc.EnumerateArray())
     
     LogHandlerCommon.Info(logger, CertificateStore, 
         $"Machine: {clientMachine}, Match: {clientMachine == CertificateStore.ClientMachine}");
+}
+
+
+var filtered = resultDoc.EnumerateArray()
+    .Select(doc => new {
+        Doc = doc,
+        HasClient = doc.TryGetProperty("clientMachine", out var cm),
+        ClientMachine = doc.TryGetProperty("clientMachine", out var c) ? c.GetString() : null
+    });
+
+foreach (var item in filtered)
+{
+    LogHandlerCommon.Info(logger, CertificateStore, 
+        $"Has clientMachine: {item.HasClient}, Value: {item.ClientMachine}");
 }
