@@ -138,3 +138,35 @@ var storeObj = new
 };
 
 string finalBody = JsonConvert.SerializeObject(storeObj, Formatting.Indented);
+
+
+
+
+
+var originalStore = JsonDocument.Parse(result).RootElement;
+var propertiesStr = originalStore.GetProperty("Properties").GetString();
+propertiesStr = System.Text.RegularExpressions.Regex.Unescape(propertiesStr);
+
+// Create store object preserving all original fields
+var storeObj = new
+{
+   Id = originalStore.GetProperty("Id").GetString(),
+   ContainerId = originalStore.GetProperty("ContainerId").GetRawText(),
+   DisplayName = originalStore.GetProperty("DisplayName").GetString(),
+   ClientMachine = originalStore.GetProperty("ClientMachine").GetString(),
+   Storepath = originalStore.GetProperty("Storepath").GetString(),
+   CertStoreInventoryJobId = originalStore.GetProperty("CertStoreInventoryJobId").GetRawText(),
+   CertStoreType = originalStore.GetProperty("CertStoreType").GetRawText(),
+   Approved = originalStore.GetProperty("Approved").GetBoolean(),
+   CreateIfMissing = originalStore.GetProperty("CreateIfMissing").GetBoolean(),
+   AgentId = originalStore.GetProperty("AgentId").GetString(),
+   AgentAssigned = originalStore.GetProperty("AgentAssigned").GetBoolean(),
+   ContainerName = originalStore.GetProperty("ContainerName").GetString(),
+   InventorySchedule = originalStore.GetProperty("InventorySchedule").GetRawText(),
+   ReenrollmentStatus = originalStore.GetProperty("ReenrollmentStatus").GetRawText(),
+   SetNewPasswordAllowed = originalStore.GetProperty("SetNewPasswordAllowed").GetBoolean(),
+   Password = originalStore.GetProperty("Password").GetRawText(),
+   Properties = newPropsJson
+};
+
+string finalBody = JsonConvert.SerializeObject(storeObj, Formatting.Indented);
