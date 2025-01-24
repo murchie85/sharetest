@@ -117,27 +117,30 @@ var originalStore = JsonDocument.Parse(result).RootElement;
 var propertiesStr = originalStore.GetProperty("Properties").GetString();
 var propsObject = JsonDocument.Parse(propertiesStr).RootElement;
 
-var newProps = new Dictionary<string, object> {
-   ["ServerUsername"] = new { value = new { SecretValue = serverUsername } },
-   ["ServerPassword"] = new { value = new { SecretValue = serverPword } },
-   ["cyberarkUsername"] = new { value = new { SecretValue = cyberarkUname } },
-   ["cyberarkPassword"] = new { value = new { SecretValue = cyberarkPword } },
-   ["PrimaryNodeCheckRetryMax"] = new { value = "22" }
-};
+// Create dictionary with all existing properties
+var newProps = new Dictionary<string, object>();
+foreach (JsonProperty prop in propsObject.EnumerateObject())
+{
+    newProps[prop.Name] = JsonDocument.Parse(prop.Value.GetRawText()).RootElement;
+}
 
-string newPropsJson = System.Text.Json.JsonSerializer.Serialize(newProps);
+// Update only specific properties
+newProps["ServerUsername"] = new { value = new { SecretValue = serverUsername } };
+newProps["ServerPassword"] = new { value = new { SecretValue = serverPword } };
+newProps["cyberarkUsername"] = new { value = new { SecretValue = cyberarkUname } };
+newProps["cyberarkPassword"] = new { value = new { SecretValue = cyberarkPword } };
+newProps["PrimaryNodeCheckRetryMax"] = new { value = "22" };
+
+var options = new JsonSerializerOptions { WriteIndented = true };
+string newPropsJson = JsonSerializer.Serialize(newProps, options);
 
 var storeObj = new
 {
-   Id = originalStore.GetProperty("Id").GetString(),
-   ContainerId = originalStore.GetProperty("ContainerId").GetRawText(),
-   DisplayName = originalStore.GetProperty("DisplayName").GetString(),
-   ClientMachine = originalStore.GetProperty("ClientMachine").GetString(),
-   Properties = newPropsJson
+    Id = originalStore.GetProperty("Id").GetString(),
+    ContainerId = originalStore.GetProperty("ContainerId").GetRawText(),
+    DisplayName = originalStore.GetProperty("DisplayName").GetString(),
+    ClientMachine = originalStore.GetProperty("ClientMachine").GetString(),
+    Properties = newPropsJson
 };
 
-string finalBody = System.Text.Json.JsonSerializer.Serialize(storeObj);
-
-
-
-
+string finalBody = JsonSerializer.Serialize(storeObj, options);
