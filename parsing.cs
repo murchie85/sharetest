@@ -72,3 +72,39 @@ foreach (var doc in resultDoc.EnumerateArray())
 }
 LogHandlerCommon.Info(logger, CertificateStore, $"Final target certstore id: {TargetCertStoreID}");
 ```
+
+
+
+
+public string CallKeyfactorPutJson(string url, string jsonPayload)
+{
+    LogHandlerCommon.MethodEntry(logger, CertificateStore, "MakeApiCall");
+    try
+    {
+        var byteArray = Encoding.ASCII.GetBytes(@"testuser:testpass");
+        var base64Credentials = Convert.ToBase64String(byteArray);
+        var handler = new HttpClientHandler();
+        var client = new HttpClient(handler);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("basic", base64Credentials);
+
+        LogHandlerCommon.Info(logger, CertificateStore, $"Making API PUT call to: '{url}'");
+
+        using (client)
+        {
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+            var response = client.PutAsync(url, content).Result;
+            LogHandlerCommon.Info(logger, CertificateStore, $"Received response. Status: {response.StatusCode}, ReasonPhrase: {response.ReasonPhrase}");
+
+            response.EnsureSuccessStatusCode();
+            var responseContent = response.Content.ReadAsStringAsync().Result;
+
+            LogHandlerCommon.Info(logger, CertificateStore, "Successfully read response content");
+            return responseContent;
+        }
+    }
+    catch (Exception ex)
+    {
+        LogHandlerCommon.Error(logger, CertificateStore, $"Exception occurred: {ex.Message}");
+        throw;
+    }
+}
