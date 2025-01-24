@@ -45,31 +45,30 @@ foreach (var doc in resultDoc.EnumerateArray())
 
 
 
-
-
+```csharp
 string TargetCertStoreID = "none";
 foreach (var doc in resultDoc.EnumerateArray())
 {
     if (doc.TryGetProperty("ClientMachine", out var cm) && 
         cm.GetString() == CertificateStore.ClientMachine)
     {
-        LogHandlerCommon.Info(logger, CertificateStore, $"Found matching machine: {cm.GetString()}");
-        LogHandlerCommon.Info(logger, CertificateStore, $"Raw document: {doc}");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Checking machine: {cm.GetString()}");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Doc ID: {doc.GetProperty("Id").GetString()}");
 
         var propertiesStr = doc.GetProperty("Properties").GetString();
-        LogHandlerCommon.Info(logger, CertificateStore, $"Properties string: {propertiesStr}");
-        
         var propertiesJson = JsonDocument.Parse(propertiesStr).RootElement;
-        LogHandlerCommon.Info(logger, CertificateStore, $"Properties JSON: {propertiesJson}");
 
         if (propertiesJson.TryGetProperty("PluginVersion", out var version))
         {
-            LogHandlerCommon.Info(logger, CertificateStore, $"Plugin Version: {version.GetString()}");
-        }
-        else
-        {
-            LogHandlerCommon.Info(logger, CertificateStore, "No PluginVersion found");
+            LogHandlerCommon.Info(logger, CertificateStore, $"Found PluginVersion: {version.GetString()}");
+            if (version.GetString() == "10")
+            {
+                TargetCertStoreID = doc.GetProperty("Id").GetString();
+                LogHandlerCommon.Info(logger, CertificateStore, $"Found matching store with ID: {TargetCertStoreID}");
+                break;
+            }
         }
     }
 }
-LogHandlerCommon.Info(logger, CertificateStore, $"target certstore id: {TargetCertStoreID}");
+LogHandlerCommon.Info(logger, CertificateStore, $"Final target certstore id: {TargetCertStoreID}");
+```
