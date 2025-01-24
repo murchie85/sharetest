@@ -31,3 +31,13 @@ foreach (var item in filtered)
     LogHandlerCommon.Info(logger, CertificateStore, 
         $"Has clientMachine: {item.HasClient}, Value: {item.ClientMachine}");
 }
+
+
+foreach (var doc in resultDoc.EnumerateArray())
+{
+   if (doc.TryGetProperty("ClientMachine", out var cm) && 
+       cm.GetString() == CertificateStore.ClientMachine)
+   {
+       LogHandlerCommon.Info(logger, CertificateStore, $"Found matching machine: {cm.GetString()}");
+   }
+}
