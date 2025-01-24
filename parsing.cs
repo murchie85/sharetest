@@ -44,6 +44,9 @@ foreach (var doc in resultDoc.EnumerateArray())
 
 
 
+
+
+string TargetCertStoreID = "none";
 foreach (var doc in resultDoc.EnumerateArray())
 {
     if (doc.TryGetProperty("ClientMachine", out var cm) && 
@@ -52,11 +55,13 @@ foreach (var doc in resultDoc.EnumerateArray())
         var propertiesStr = doc.GetProperty("Properties").GetString();
         var propertiesJson = JsonDocument.Parse(propertiesStr).RootElement;
         
-        if (propertiesJson.GetProperty("PluginVersion").GetString() == "10")
+        if (propertiesJson.TryGetProperty("PluginVersion", out var version) &&
+            version.GetString() == "10" &&
+            propertiesJson.TryGetProperty("Id", out var id))
         {
-            LogHandlerCommon.Info(logger, CertificateStore, $"Raw document: {doc}");
-            string targetId = propertiesJson.GetProperty("Id").GetString();
-            // Set your $TargetCertStoreID here
+            TargetCertStoreID = id.GetString();
+            break; // Exit once we find a match
         }
     }
 }
+LogHandlerCommon.Info(logger, CertificateStore, $"target certstore id: {TargetCertStoreID}");
