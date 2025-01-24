@@ -108,3 +108,38 @@ public string CallKeyfactorPutJson(string url, string jsonPayload)
         throw;
     }
 }
+
+
+
+
+
+```csharp
+// Parse the original store response
+var originalStore = JsonDocument.Parse(result).RootElement;
+var propertiesStr = originalStore.GetProperty("Properties").GetString();
+var propsObject = JsonDocument.Parse(propertiesStr).RootElement;
+
+// Create new dictionary for modified properties
+var newProps = new Dictionary<string, object>();
+
+// Add required fields with value structure
+newProps["ServerUsername"] = new { value = new { SecretValue = serverUsername } };
+newProps["ServerPassword"] = new { value = new { SecretValue = serverPword } }; 
+newProps["cyberarkUsername"] = new { value = new { SecretValue = cyberarkUname } };
+newProps["cyberarkPassword"] = new { value = new { SecretValue = cyberarkPword } };
+newProps["PrimaryNodeCheckRetryMax"] = new { value = "22" };
+
+// Convert back to JSON string with escaping
+var newPropsJson = JsonSerializer.Serialize(newProps, new JsonSerializerOptions { 
+    WriteIndented = true
+});
+
+// Create final body with updated Properties
+var finalBody = JsonSerializer.Serialize(new {
+    originalStore.GetProperty("Id"),
+    originalStore.GetProperty("ContainerId"),
+    originalStore.GetProperty("DisplayName"),
+    originalStore.GetProperty("ClientMachine"),
+    Properties = newPropsJson
+});
+```
