@@ -111,28 +111,22 @@ public string CallKeyfactorPutJson(string url, string jsonPayload)
 
 
 
-
+using Newtonsoft.Json;
 
 var originalStore = JsonDocument.Parse(result).RootElement;
 var propertiesStr = originalStore.GetProperty("Properties").GetString();
-var propsObject = JsonDocument.Parse(propertiesStr).RootElement;
+propertiesStr = System.Text.RegularExpressions.Regex.Unescape(propertiesStr);
 
-// Create dictionary with all existing properties
-var newProps = new Dictionary<string, object>();
-foreach (JsonProperty prop in propsObject.EnumerateObject())
-{
-    newProps[prop.Name] = JsonDocument.Parse(prop.Value.GetRawText()).RootElement;
-}
+var existingProps = JsonConvert.DeserializeObject<Dictionary<string, object>>(propertiesStr);
 
-// Update only specific properties
-newProps["ServerUsername"] = new { value = new { SecretValue = serverUsername } };
-newProps["ServerPassword"] = new { value = new { SecretValue = serverPword } };
-newProps["cyberarkUsername"] = new { value = new { SecretValue = cyberarkUname } };
-newProps["cyberarkPassword"] = new { value = new { SecretValue = cyberarkPword } };
-newProps["PrimaryNodeCheckRetryMax"] = new { value = "22" };
+// Update specific properties
+existingProps["ServerUsername"] = new { value = new { SecretValue = serverUsername } };
+existingProps["ServerPassword"] = new { value = new { SecretValue = serverPword } };
+existingProps["cyberarkUsername"] = new { value = new { SecretValue = cyberarkUname } };
+existingProps["cyberarkPassword"] = new { value = new { SecretValue = cyberarkPword } };
+existingProps["PrimaryNodeCheckRetryMax"] = new { value = "22" };
 
-var options = new JsonSerializerOptions { WriteIndented = true };
-string newPropsJson = JsonSerializer.Serialize(newProps, options);
+string newPropsJson = JsonConvert.SerializeObject(existingProps, Formatting.Indented);
 
 var storeObj = new
 {
@@ -143,4 +137,4 @@ var storeObj = new
     Properties = newPropsJson
 };
 
-string finalBody = JsonSerializer.Serialize(storeObj, options);
+string finalBody = JsonConvert.SerializeObject(storeObj, Formatting.Indented);
