@@ -41,3 +41,22 @@ foreach (var doc in resultDoc.EnumerateArray())
        LogHandlerCommon.Info(logger, CertificateStore, $"Found matching machine: {cm.GetString()}");
    }
 }
+
+
+
+foreach (var doc in resultDoc.EnumerateArray())
+{
+    if (doc.TryGetProperty("ClientMachine", out var cm) && 
+        cm.GetString() == CertificateStore.ClientMachine)
+    {
+        var propertiesStr = doc.GetProperty("Properties").GetString();
+        var propertiesJson = JsonDocument.Parse(propertiesStr).RootElement;
+        
+        if (propertiesJson.GetProperty("PluginVersion").GetString() == "10")
+        {
+            LogHandlerCommon.Info(logger, CertificateStore, $"Raw document: {doc}");
+            string targetId = propertiesJson.GetProperty("Id").GetString();
+            // Set your $TargetCertStoreID here
+        }
+    }
+}
