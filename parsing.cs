@@ -46,21 +46,29 @@ foreach (var doc in resultDoc.EnumerateArray())
 
 
 
+
 string TargetCertStoreID = "none";
 foreach (var doc in resultDoc.EnumerateArray())
 {
     if (doc.TryGetProperty("ClientMachine", out var cm) && 
         cm.GetString() == CertificateStore.ClientMachine)
     {
+        LogHandlerCommon.Info(logger, CertificateStore, $"Found matching machine: {cm.GetString()}");
+        LogHandlerCommon.Info(logger, CertificateStore, $"Raw document: {doc}");
+
         var propertiesStr = doc.GetProperty("Properties").GetString();
-        var propertiesJson = JsonDocument.Parse(propertiesStr).RootElement;
+        LogHandlerCommon.Info(logger, CertificateStore, $"Properties string: {propertiesStr}");
         
-        if (propertiesJson.TryGetProperty("PluginVersion", out var version) &&
-            version.GetString() == "10" &&
-            propertiesJson.TryGetProperty("Id", out var id))
+        var propertiesJson = JsonDocument.Parse(propertiesStr).RootElement;
+        LogHandlerCommon.Info(logger, CertificateStore, $"Properties JSON: {propertiesJson}");
+
+        if (propertiesJson.TryGetProperty("PluginVersion", out var version))
         {
-            TargetCertStoreID = id.GetString();
-            break; // Exit once we find a match
+            LogHandlerCommon.Info(logger, CertificateStore, $"Plugin Version: {version.GetString()}");
+        }
+        else
+        {
+            LogHandlerCommon.Info(logger, CertificateStore, "No PluginVersion found");
         }
     }
 }
