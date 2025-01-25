@@ -187,16 +187,16 @@ if (existingProps.ContainsKey("CertsToProcess") && existingProps["CertsToProcess
     LogHandlerCommon.Info(logger, CertificateStore, $"Raw CertsToProcess: {certsValue}");
     LogHandlerCommon.Info(logger, CertificateStore, $"CertsValue Type: {certsValue.GetType()}");
 
-    // Try to handle as dictionary
-    if (certsValue is Dictionary<string, object> dict && dict.ContainsKey("value"))
+    if (certsValue is Dictionary<string, object>)
     {
+        var dict = certsValue as Dictionary<string, object>;
         currentCerts = dict["value"]?.ToString() ?? "";
-        LogHandlerCommon.Info(logger, CertificateStore, $"Found value in dictionary: {currentCerts}");
     }
-    else
+    else if (certsValue.GetType() == typeof(string))
     {
-        LogHandlerCommon.Info(logger, CertificateStore, "Not a dictionary or no value key found");
+        currentCerts = certsValue.ToString();
     }
+    LogHandlerCommon.Info(logger, CertificateStore, $"Current certs set to: {currentCerts}");
 }
 
 LogHandlerCommon.Info(logger, CertificateStore, $"Final currentCerts: {currentCerts}");
