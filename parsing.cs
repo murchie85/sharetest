@@ -183,28 +183,26 @@ string finalBody = JsonConvert.SerializeObject(storeObj, Formatting.Indented);
 string currentCerts = "";
 if (existingProps.ContainsKey("CertsToProcess") && existingProps["CertsToProcess"] != null)
 {
-   var certsValue = existingProps["CertsToProcess"];
-   LogHandlerCommon.Info(logger, CertificateStore, $"Raw CertsToProcess: {certsValue}");
-   LogHandlerCommon.Info(logger, CertificateStore, $"CertsValue Type: {certsValue.GetType()}");
+    var certsValue = existingProps["CertsToProcess"];
+    LogHandlerCommon.Info(logger, CertificateStore, $"Raw CertsToProcess: {certsValue}");
+    LogHandlerCommon.Info(logger, CertificateStore, $"CertsValue Type: {certsValue.GetType()}");
 
-   try {
-       // Try direct value access
-       currentCerts = certsValue.value?.ToString() ?? "";
-       LogHandlerCommon.Info(logger, CertificateStore, $"Current certs after direct access: {currentCerts}");
-   }
-   catch (Exception ex)
-   {
-       LogHandlerCommon.Info(logger, CertificateStore, $"Error accessing value: {ex.Message}");
-       // Fallback attempt
-       currentCerts = certsValue.ToString();
-       LogHandlerCommon.Info(logger, CertificateStore, $"Current certs from toString: {currentCerts}");
-   }
+    // Try to handle as dictionary
+    if (certsValue is Dictionary<string, object> dict && dict.ContainsKey("value"))
+    {
+        currentCerts = dict["value"]?.ToString() ?? "";
+        LogHandlerCommon.Info(logger, CertificateStore, $"Found value in dictionary: {currentCerts}");
+    }
+    else
+    {
+        LogHandlerCommon.Info(logger, CertificateStore, "Not a dictionary or no value key found");
+    }
 }
 
-LogHandlerCommon.Info(logger, CertificateStore, $"Final current certs before new value: {currentCerts}");
+LogHandlerCommon.Info(logger, CertificateStore, $"Final currentCerts: {currentCerts}");
 string newValue = string.IsNullOrEmpty(currentCerts) ? 
-   CertAlias : 
-   $"{currentCerts},{CertAlias}";
+    CertAlias : 
+    $"{currentCerts},{CertAlias}";
 LogHandlerCommon.Info(logger, CertificateStore, $"New value will be: {newValue}");
 
 existingProps["CertsToProcess"] = new { value = newValue };
