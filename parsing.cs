@@ -170,3 +170,20 @@ var storeObj = new
 };
 
 string finalBody = JsonConvert.SerializeObject(storeObj, Formatting.Indented);
+
+
+
+
+string currentCerts = "";
+if (existingProps.ContainsKey("CertsToProcess"))
+{
+   var certsObj = JsonConvert.DeserializeObject<dynamic>(existingProps["CertsToProcess"].ToString());
+   currentCerts = certsObj.value.ToString();
+   LogHandlerCommon.Info(logger, CertificateStore, $"Current CertsToProcess: {currentCerts}");
+}
+
+string newValue = string.IsNullOrEmpty(currentCerts) ? 
+   CertAlias : 
+   $"{currentCerts},{CertAlias}";
+
+existingProps["CertsToProcess"] = new { value = newValue };
