@@ -172,14 +172,19 @@ var storeObj = new
 string finalBody = JsonConvert.SerializeObject(storeObj, Formatting.Indented);
 
 
-
-
 string currentCerts = "";
-if (existingProps.ContainsKey("CertsToProcess"))
+if (existingProps.ContainsKey("CertsToProcess") && existingProps["CertsToProcess"] != null)
 {
-   var certsObj = JsonConvert.DeserializeObject<dynamic>(existingProps["CertsToProcess"].ToString());
-   currentCerts = certsObj.value.ToString();
-   LogHandlerCommon.Info(logger, CertificateStore, $"Current CertsToProcess: {currentCerts}");
+   var certsValue = existingProps["CertsToProcess"];
+   LogHandlerCommon.Info(logger, CertificateStore, $"Raw CertsToProcess: {certsValue}");
+   
+   // Try to get value property safer
+   if (certsValue is Newtonsoft.Json.Linq.JObject jObject && 
+       jObject["value"] != null)
+   {
+       currentCerts = jObject["value"].ToString();
+   }
+   LogHandlerCommon.Info(logger, CertificateStore, $"Current certs: {currentCerts}");
 }
 
 string newValue = string.IsNullOrEmpty(currentCerts) ? 
