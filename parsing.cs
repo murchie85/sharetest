@@ -172,23 +172,39 @@ var storeObj = new
 string finalBody = JsonConvert.SerializeObject(storeObj, Formatting.Indented);
 
 
+
+
+
+
+
+
+
+
 string currentCerts = "";
 if (existingProps.ContainsKey("CertsToProcess") && existingProps["CertsToProcess"] != null)
 {
    var certsValue = existingProps["CertsToProcess"];
    LogHandlerCommon.Info(logger, CertificateStore, $"Raw CertsToProcess: {certsValue}");
-   
-   // Try to get value property safer
-   if (certsValue is Newtonsoft.Json.Linq.JObject jObject && 
-       jObject["value"] != null)
-   {
-       currentCerts = jObject["value"].ToString();
+   LogHandlerCommon.Info(logger, CertificateStore, $"CertsValue Type: {certsValue.GetType()}");
+
+   try {
+       // Try direct value access
+       currentCerts = certsValue.value?.ToString() ?? "";
+       LogHandlerCommon.Info(logger, CertificateStore, $"Current certs after direct access: {currentCerts}");
    }
-   LogHandlerCommon.Info(logger, CertificateStore, $"Current certs: {currentCerts}");
+   catch (Exception ex)
+   {
+       LogHandlerCommon.Info(logger, CertificateStore, $"Error accessing value: {ex.Message}");
+       // Fallback attempt
+       currentCerts = certsValue.ToString();
+       LogHandlerCommon.Info(logger, CertificateStore, $"Current certs from toString: {currentCerts}");
+   }
 }
 
+LogHandlerCommon.Info(logger, CertificateStore, $"Final current certs before new value: {currentCerts}");
 string newValue = string.IsNullOrEmpty(currentCerts) ? 
    CertAlias : 
    $"{currentCerts},{CertAlias}";
+LogHandlerCommon.Info(logger, CertificateStore, $"New value will be: {newValue}");
 
 existingProps["CertsToProcess"] = new { value = newValue };
