@@ -13,17 +13,16 @@ Write-Host "Header line: $headerLine"
 
 # Parse headers
 $headers = $headerLine -split ','
-for ($i = 0; $i -lt $headers.Count; $i++) {
-    $headers[$i] = $headers[$i].Trim('"').Trim()
-    Write-Host "Header[$i]: '$($headers[$i])'"
-}
+$issuedDnIndex = -1
 
 # Find the index of "Issued DN" or similar
-$issuedDnIndex = -1
 for ($i = 0; $i -lt $headers.Count; $i++) {
-    if ($headers[$i] -eq "Issued DN" -or $headers[$i] -like "*Issued*DN*") {
+    $currentHeader = $headers[$i].Trim('"').Trim()
+    Write-Host "Header[$i]: '$currentHeader'"
+    
+    if ($currentHeader -eq "Issued DN" -or $currentHeader -like "*Issued*DN*") {
         $issuedDnIndex = $i
-        Write-Host "Found 'Issued DN' at index $i: '$($headers[$i])'"
+        Write-Host "Found 'Issued DN' at index $i"
         break
     }
 }
@@ -31,6 +30,7 @@ for ($i = 0; $i -lt $headers.Count; $i++) {
 if ($issuedDnIndex -ge 0) {
     # Process data rows (skip header)
     $issuedDnValues = @()
+    $validLines = 0
     
     for ($lineIndex = 1; $lineIndex -lt $lines.Count; $lineIndex++) {
         $line = $lines[$lineIndex]
@@ -42,11 +42,13 @@ if ($issuedDnIndex -ge 0) {
                 $value = $fields[$issuedDnIndex].Trim('"').Trim()
                 if ($value -ne "") {
                     $issuedDnValues += $value
+                    $validLines++
                 }
             }
         }
     }
     
+    Write-Host "Processed $validLines non-empty lines"
     Write-Host "Found $($issuedDnValues.Count) non-empty 'Issued DN' values"
     
     # Count occurrences and get top 20
