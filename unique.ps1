@@ -1,80 +1,60 @@
 # URL of the CSV file
 $url = "YOUR_URL_HERE"
 
-# Download the CSV content
-$rawContent = Invoke-WebRequest -Uri $url | Select-Object -ExpandProperty Content
+# Download the raw content
+$rawContent = (Invoke-WebRequest -Uri $url).Content
 
-# Save raw content to a file for inspection (optional)
-# $rawContent | Out-File -FilePath "raw_data.txt"
+# Split into lines
+$lines = $rawContent -split "`r?`n"
 
-# Check if content looks like a CSV
-Write-Host "First 100 characters of raw content:"
-$rawContent.Substring(0, [Math]::Min(100, $rawContent.Length))
+# Find the header line
+$headerLine = $lines[0]
+Write-Host "Header line: $headerLine"
 
-# Inspect for potential delimiters
-$possibleDelimiters = @(',', ';', "`t", '|')
-foreach ($delimiter in $possibleDelimiters) {
-    $count = ($rawContent.ToCharArray() | Where-Object { $_ -eq $delimiter[0] }).Count
-    Write-Host "Potential delimiter '$delimiter' count: $count"
+# Parse headers
+$headers = $headerLine -split ','
+for ($i = 0; $i -lt $headers.Count; $i++) {
+    $headers[$i] = $headers[$i].Trim('"').Trim()
+    Write-Host "Header[$i]: '$($headers[$i])'"
 }
 
-# Try to parse with explicit parameters
-$csvData = $rawContent | ConvertFrom-Csv
-
-# Show the count of objects
-Write-Host "Total CSV objects: $($csvData.Count)"
-
-# Examine what properties are available in the first few objects
-Write-Host "Properties in the first object:"
-$csvData[0] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
-
-# Let's inspect the first few rows to see the pattern
-Write-Host "`nFirst 5 rows data inspection:"
-for ($i = 0; $i -lt [Math]::Min(5, $csvData.Count); $i++) {
-    Write-Host "`nRow $i property values:"
-    $row = $csvData[$i]
-    $properties = $row | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
-    foreach ($prop in $properties) {
-        $value = $row.$prop
-        $valuePresent = if ([string]::IsNullOrWhiteSpace($value)) { "EMPTY" } else { "PRESENT" }
-        Write-Host "  $prop`: $valuePresent"
+# Find the index of "Issued DN" or similar
+$issuedDnIndex = -1
+for ($i = 0; $i -lt $headers.Count; $i++) {
+    if ($headers[$i] -eq "Issued DN" -or $headers[$i] -like "*Issued*DN*") {
+        $issuedDnIndex = $i
+        Write-Host "Found 'Issued DN' at index $i: '$($headers[$i])'"
+        break
     }
 }
 
-# Attempt to find the "Issued DN" property with case-insensitive search
-$issuedDnProperty = $csvData[0] | Get-Member -MemberType NoteProperty | 
-                    Where-Object { $_.Name -like "*issued*dn*" } | 
-                    Select-Object -First 1 -ExpandProperty Name
-
-if ($issuedDnProperty) {
-    Write-Host "`nFound property that might be 'Issued DN': $issuedDnProperty"
+if ($issuedDnIndex -ge 0) {
+    # Process data rows (skip header)
+    $issuedDnValues = @()
     
-    # Filter non-empty rows based on the discovered property
-    $csvDataFiltered = $csvData | Where-Object { 
-        $_ -ne $null -and $_.$issuedDnProperty -ne $null -and $_.$issuedDnProperty -ne "" 
+    for ($lineIndex = 1; $lineIndex -lt $lines.Count; $lineIndex++) {
+        $line = $lines[$lineIndex]
+        if ($line.Trim() -ne "") {
+            # Simple CSV parsing (doesn't handle quoted commas correctly but works for basic CSV)
+            $fields = $line -split ','
+            
+            if ($fields.Count -gt $issuedDnIndex) {
+                $value = $fields[$issuedDnIndex].Trim('"').Trim()
+                if ($value -ne "") {
+                    $issuedDnValues += $value
+                }
+            }
+        }
     }
     
-    # Count filtered results
-    Write-Host "Filtered rows count: $($csvDataFiltered.Count)"
+    Write-Host "Found $($issuedDnValues.Count) non-empty 'Issued DN' values"
     
-    # Process top 20 if we have filtered data
-    if ($csvDataFiltered.Count -gt 0) {
-        # Group by found property, count occurrences, and sort by count in descending order
-        $topIssuedDNs = $csvDataFiltered | 
-            Group-Object -Property $issuedDnProperty | 
-            Select-Object Name, Count | 
-            Sort-Object -Property Count -Descending | 
-            Select-Object -First 20
-        
-        # Display the results
-        Write-Host "`nTop 20 most common values:"
-        $topIssuedDNs | Format-Table -AutoSize
-    }
-    else {
-        Write-Host "No valid rows found after filtering."
-    }
+    # Count occurrences and get top 20
+    $topValues = $issuedDnValues | Group-Object | Sort-Object -Property Count -Descending | Select-Object -First 20
+    
+    # Display results
+    $topValues | Format-Table -Property Name, Count -AutoSize
 }
 else {
-    Write-Host "Could not find a property matching 'Issued DN'. Available properties:"
-    $csvData[0] | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
+    Write-Host "Could not find 'Issued DN' column in headers"
 }
