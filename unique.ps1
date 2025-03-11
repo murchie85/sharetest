@@ -7,11 +7,16 @@ $csvData = Invoke-WebRequest -Uri $csvUrl -UseBasicParsing | Select-Object -Expa
 # Convert CSV to PowerShell objects
 $csvObjects = $csvData | ConvertFrom-Csv
 
-# Count occurrences of unique "Issued DN" values
-$frequencyCount = $csvObjects | Group-Object -Property "Issued DN" | Sort-Object Count -Descending
+# Ensure the "Issued DN" column exists
+if ($csvObjects -and $csvObjects.PSObject.Properties.Name -contains "Issued DN") {
+    # Count occurrences of unique "Issued DN" values
+    $frequencyCount = $csvObjects | Group-Object -Property "Issued DN" | Sort-Object Count -Descending
 
-# Select the top 50 most frequent occurrences
-$top50 = $frequencyCount | Select-Object -First 50
+    # Select the top 50 most frequent occurrences
+    $top50 = $frequencyCount | Select-Object -First 50
 
-# Display results in a table format
-$top50 | Format-Table Name, Count -AutoSize
+    # Display results in a readable table
+    $top50 | Format-Table Name, Count -AutoSize
+} else {
+    Write-Host "Column 'Issued DN' not found in CSV."
+}
