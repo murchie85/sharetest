@@ -7,8 +7,11 @@ $csvData = Invoke-WebRequest -Uri $csvUrl -UseBasicParsing | Select-Object -Expa
 # Convert CSV to PowerShell objects
 $csvObjects = $csvData | ConvertFrom-Csv
 
-# Count frequency of "Issued DN" values
-$frequencyCount = $csvObjects | Group-Object -Property "Issued DN" | Sort-Object -Property Count -Descending
+# Count occurrences of unique "Issued DN" values
+$frequencyCount = $csvObjects | Group-Object -Property "Issued DN" | Sort-Object Count -Descending
 
-# Display the top 50
-$frequencyCount | Select-Object -First 50
+# Select the top 50 most frequent occurrences
+$top50 = $frequencyCount | Select-Object -First 50
+
+# Display results in a table format
+$top50 | Format-Table Name, Count -AutoSize
