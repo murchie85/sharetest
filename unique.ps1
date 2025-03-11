@@ -1,26 +1,18 @@
-# Define the URL
-$csvUrl = "https://example.com/path/to/your.csv"
+# URL of the CSV file
+$url = "YOUR_URL_HERE"
 
-# Download CSV data
-$csvData = Invoke-WebRequest -Uri $csvUrl -UseBasicParsing | Select-Object -ExpandProperty Content
+# Download the CSV content
+$csvContent = Invoke-WebRequest -Uri $url | Select-Object -ExpandProperty Content
 
-# Convert CSV to PowerShell objects
-$csvObjects = $csvData | ConvertFrom-Csv
+# Convert the CSV content to objects
+$csvData = $csvContent | ConvertFrom-Csv
 
-# Remove blank rows (rows where all columns are empty)
-$filteredObjects = $csvObjects | Where-Object { $_."Issued DN" -and ($_."Issued DN" -match '\S') }
+# Group by "Issued DN" column, count occurrences, and sort by count in descending order
+$topIssuedDNs = $csvData | 
+    Group-Object -Property "Issued DN" | 
+    Select-Object Name, Count | 
+    Sort-Object -Property Count -Descending | 
+    Select-Object -First 20
 
-# Ensure we have valid rows
-if ($filteredObjects.Count -eq 0) {
-    Write-Host "No valid data found in CSV after filtering empty rows."
-    exit
-}
-
-# Group and count occurrences of "Issued DN"
-$frequencyCount = $filteredObjects | Group-Object -Property "Issued DN" | Sort-Object Count -Descending
-
-# Select the top 50
-$top50 = $frequencyCount | Select-Object -First 50
-
-# Display results
-$top50 | Format-Table Name, Count -AutoSize
+# Display the results
+$topIssuedDNs | Format-Table -AutoSize
