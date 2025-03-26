@@ -1,0 +1,53 @@
+```c#
+/// <summary>
+/// Lists all certificates available to the current user and local machine
+/// </summary>
+public void ListAvailableCertificates()
+{
+    LogHandlerCommon.MethodEntry(logger, CertificateStore, "ListAvailableCertificates");
+
+    // List certificates from the current user store
+    ListCertificatesFromStore(StoreLocation.CurrentUser, "Current User Certificates");
+
+    // List certificates from the local machine store
+    ListCertificatesFromStore(StoreLocation.LocalMachine, "Local Machine Certificates");
+
+    LogHandlerCommon.MethodExit(logger, CertificateStore, "ListAvailableCertificates");
+}
+
+private void ListCertificatesFromStore(StoreLocation location, string storeDescription)
+{
+    LogHandler.Info(logger, CertificateStore, $"Listing certificates from {storeDescription}");
+
+    // Open different store types that might contain certificates
+    string[] storeNames = { "My", "Root", "CA", "TrustedPeople", "TrustedPublisher" };
+
+    foreach (string storeName in storeNames)
+    {
+        try
+        {
+            using (X509Store store = new X509Store(storeName, location))
+            {
+                store.Open(OpenFlags.ReadOnly);
+                
+                LogHandler.Info(logger, CertificateStore, $"Store: {location}/{storeName} - Found {store.Certificates.Count} certificates");
+                
+                foreach (X509Certificate2 cert in store.Certificates)
+                {
+                    LogHandler.Info(logger, CertificateStore, 
+                        $"Certificate: Subject={cert.Subject}, " +
+                        $"Issuer={cert.Issuer}, " + 
+                        $"Thumbprint={cert.Thumbprint}, " +
+                        $"HasPrivateKey={cert.HasPrivateKey}, " +
+                        $"NotBefore={cert.NotBefore}, " +
+                        $"NotAfter={cert.NotAfter}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LogHandler.Error(logger, CertificateStore, $"Error accessing {location}/{storeName} store: {ex.Message}");
+        }
+    }
+}
+```
