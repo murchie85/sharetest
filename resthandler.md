@@ -1,143 +1,171 @@
-```c#
+```cs
+// Replace the existing GetToken method in F5Client class with this implementation:
+
+private string GetToken(string userName, string userPassword)
+{
+    LogHandlerCommon.MethodEntry(logger, CertificateStore, "GetToken");
+    
+    // Create token manager
+    TokenManager tokenManager = new TokenManager(logger);
+    
+    // Try to get stored token first
+    var existingToken = tokenManager.GetStoredToken();
+    if (existingToken != null && tokenManager.IsTokenValid(existingToken))
+    {
+        LogHandlerCommon.Trace(logger, CertificateStore, "Using stored token");
+        return existingToken.Token;
+    }
+
+    // Create new token if none exists or the existing one is invalid
+    LogHandlerCommon.Trace(logger, CertificateStore, "Stored token not found or expired - requesting new token");
+    F5LoginRequest request = new F5LoginRequest() { username = userName, password = userPassword, loginProviderName = "tmos" };
+    F5LoginResponse loginResponse = REST.Post<F5LoginResponse>($"/mgmt/shared/authn/login", JsonConvert.SerializeObject(request));
+    
+    if (loginResponse?.token?.token != null)
+    {
+        // Store token information
+        var tokenInfo = new F5TokenInfo
+        {
+            Token = loginResponse.token.token,
+            ExpirationMicros = loginResponse.token.expirationMicros,
+            Timeout = loginResponse.token.timeout,
+            UserName = userName,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        // Extend token timeout to maximum allowed (if not already)
+        if (tokenInfo.Timeout < TokenManager.EXTENDED_TIMEOUT)
+        {
+            LogHandlerCommon.Trace(logger, CertificateStore, $"Extending token lifetime from {tokenInfo.Timeout}s to {TokenManager.EXTENDED_TIMEOUT}s");
+            ExtendTokenTimeout(tokenInfo.Token, TokenManager.EXTENDED_TIMEOUT);
+            tokenInfo.Timeout = TokenManager.EXTENDED_TIMEOUT;
+            
+            // Update expiration time (current microseconds + extended timeout in microseconds)
+            long currentMicros = TokenManager.DateTimeToMicroseconds(DateTime.UtcNow);
+            tokenInfo.ExpirationMicros = currentMicros + (TokenManager.EXTENDED_TIMEOUT * 1000000L);
+        }
+
+        // Save token to file
+        tokenManager.StoreToken(tokenInfo);
+    }
+
+    LogHandlerCommon.MethodExit(logger, CertificateStore, "GetToken");
+    return loginResponse.token.token;
+}
+
+// Add this method to the F5Client class:
+private void ExtendTokenTimeout(string token, int timeoutSeconds)
+{
+    try
+    {
+        LogHandlerCommon.Trace(logger, CertificateStore, $"Extending token timeout to {timeoutSeconds} seconds");
+        var extendRequest = new { timeout = timeoutSeconds };
+        REST.Patch($"/mgmt/shared/authz/tokens/{token}", 
+                   JsonConvert.SerializeObject(extendRequest), 
+                   token);
+    }
+    catch (Exception ex)
+    {
+        LogHandlerCommon.Error(logger, CertificateStore, $"Error extending token timeout: {ex.Message}");
+        // Continue with the current token even if extension fails
+    }
+}
+
+
+
+
+
+
+
+/// token info
+// Add this class to your project namespace
 using System;
 using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
+using Newtonsoft.Json;
 
-// Token storage model
-public class TokenInfo
+namespace Keyfactor.Extensions.Orchestrator.F5Orchestrator
 {
-    public string Token { get; set; }
-    public long ExpirationMicros { get; set; }
-    public int Timeout { get; set; }
-    public string UserName { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
-
-public class RESTHandler
-{
-    private const string TOKEN_FILE_PATH = "f5_token.json";
-    private const int BUFFER_TIME_SECONDS = 300; // 5 minute buffer before expiration
-    private const int EXTENDED_TIMEOUT = 36000; // Maximum 10 hours
-
-    // Modified GetToken method with persistence
-    private string GetToken(string userName, string userPassword)
+    // Token storage model
+    public class F5TokenInfo
     {
-        LogHandlerCommon.MethodEntry(logger, CertificateStore, "GetToken");
-        
-        // Try to get stored token first
-        var existingToken = GetStoredToken();
-        if (existingToken != null && IsTokenValid(existingToken))
-        {
-            LogHandlerCommon.MethodExit(logger, CertificateStore, "GetToken - Using stored token");
-            return existingToken.Token;
-        }
-
-        // Create new token if none exists or the existing one is invalid
-        F5LoginRequest request = new F5LoginRequest() { username = userName, password = userPassword, loginProviderName = "tmos" };
-        F5LoginResponse loginResponse = REST.Post<F5LoginResponse>($"{endpoint}/mgmt/shared/authn/login", JsonConvert.SerializeObject(request));
-        
-        if (loginResponse?.token?.token != null)
-        {
-            // Store token information
-            var tokenInfo = new TokenInfo
-            {
-                Token = loginResponse.token.token,
-                ExpirationMicros = loginResponse.token.expirationMicros,
-                Timeout = loginResponse.token.timeout,
-                UserName = userName,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            // Extend token timeout to maximum allowed (if not already)
-            if (tokenInfo.Timeout < EXTENDED_TIMEOUT)
-            {
-                ExtendTokenTimeout(tokenInfo.Token, EXTENDED_TIMEOUT);
-                tokenInfo.Timeout = EXTENDED_TIMEOUT;
-                // Update expiration time (current microseconds + extended timeout in microseconds)
-                long currentMicros = DateTimeToMicroseconds(DateTime.UtcNow);
-                tokenInfo.ExpirationMicros = currentMicros + (EXTENDED_TIMEOUT * 1000000L);
-            }
-
-            // Save token to file
-            StoreToken(tokenInfo);
-        }
-
-        LogHandlerCommon.MethodExit(logger, CertificateStore, "GetToken");
-        return loginResponse.token.token;
+        public string Token { get; set; }
+        public long ExpirationMicros { get; set; }
+        public int Timeout { get; set; }
+        public string UserName { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 
-    private TokenInfo GetStoredToken()
+    // Add this class for token management
+    public class TokenManager
     {
-        try
+        public const string TOKEN_FILE_PATH = "f5_token.json";
+        public const int BUFFER_TIME_SECONDS = 300; // 5 minute buffer before expiration
+        public const int EXTENDED_TIMEOUT = 36000; // Maximum 10 hours (in seconds)
+        private ILogger logger;
+
+        public TokenManager(ILogger logger)
         {
-            if (File.Exists(TOKEN_FILE_PATH))
+            this.logger = logger;
+        }
+
+        public F5TokenInfo GetStoredToken()
+        {
+            try
             {
-                string json = File.ReadAllText(TOKEN_FILE_PATH);
-                return JsonSerializer.Deserialize<TokenInfo>(json);
+                if (File.Exists(TOKEN_FILE_PATH))
+                {
+                    string json = File.ReadAllText(TOKEN_FILE_PATH);
+                    return JsonConvert.DeserializeObject<F5TokenInfo>(json);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but continue to get a new token
+                logger?.LogError($"Error reading token file: {ex.Message}");
+            }
+            return null;
+        }
+
+        public void StoreToken(F5TokenInfo tokenInfo)
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(tokenInfo, Formatting.Indented);
+                File.WriteAllText(TOKEN_FILE_PATH, json);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError($"Error saving token file: {ex.Message}");
             }
         }
-        catch (Exception ex)
+
+        public bool IsTokenValid(F5TokenInfo tokenInfo)
         {
-            // Log error but continue to get a new token
-            LogHandlerCommon.Error(logger, CertificateStore, $"Error reading token file: {ex.Message}");
-        }
-        return null;
-    }
+            if (tokenInfo == null || string.IsNullOrEmpty(tokenInfo.Token))
+                return false;
 
-    private void StoreToken(TokenInfo tokenInfo)
-    {
-        try
+            // Convert expiration micros to DateTime
+            DateTime expirationTime = MicrosecondsToDateTime(tokenInfo.ExpirationMicros);
+            
+            // Check if token is still valid with a buffer time
+            DateTime currentTime = DateTime.UtcNow;
+            TimeSpan bufferTimeSpan = TimeSpan.FromSeconds(BUFFER_TIME_SECONDS);
+            
+            return expirationTime > currentTime.Add(bufferTimeSpan);
+        }
+
+        public static long DateTimeToMicroseconds(DateTime dateTime)
         {
-            string json = JsonSerializer.Serialize(tokenInfo, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(TOKEN_FILE_PATH, json);
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return (long)(dateTime - epoch).TotalMilliseconds * 1000;
         }
-        catch (Exception ex)
+
+        public static DateTime MicrosecondsToDateTime(long microseconds)
         {
-            LogHandlerCommon.Error(logger, CertificateStore, $"Error saving token file: {ex.Message}");
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return epoch.AddMilliseconds(microseconds / 1000);
         }
-    }
-
-    private bool IsTokenValid(TokenInfo tokenInfo)
-    {
-        if (tokenInfo == null || string.IsNullOrEmpty(tokenInfo.Token))
-            return false;
-
-        // Convert expiration micros to DateTime
-        DateTime expirationTime = MicrosecondsToDateTime(tokenInfo.ExpirationMicros);
-        
-        // Check if token is still valid with a buffer time
-        DateTime currentTime = DateTime.UtcNow;
-        TimeSpan bufferTimeSpan = TimeSpan.FromSeconds(BUFFER_TIME_SECONDS);
-        
-        return expirationTime > currentTime.Add(bufferTimeSpan);
-    }
-
-    private void ExtendTokenTimeout(string token, int timeoutSeconds)
-    {
-        try
-        {
-            var extendRequest = new { timeout = timeoutSeconds };
-            REST.Patch($"{endpoint}/mgmt/shared/authz/tokens/{token}", 
-                       JsonConvert.SerializeObject(extendRequest), 
-                       token);
-        }
-        catch (Exception ex)
-        {
-            LogHandlerCommon.Error(logger, CertificateStore, $"Error extending token timeout: {ex.Message}");
-        }
-    }
-
-    private static long DateTimeToMicroseconds(DateTime dateTime)
-    {
-        var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        return (long)(dateTime - epoch).TotalMilliseconds * 1000;
-    }
-
-    private static DateTime MicrosecondsToDateTime(long microseconds)
-    {
-        var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        return epoch.AddMilliseconds(microseconds / 1000);
     }
 }
 ```
