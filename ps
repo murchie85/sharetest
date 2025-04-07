@@ -13,21 +13,8 @@ function Get-F5AuthToken {
     )
 
     # Ignore SSL certificate validation
-    if (-not ([System.Management.Automation.PSTypeName]'TrustAllCertsPolicy').Type) {
-        Add-Type -TypeDefinition @"
-            using System.Net;
-            using System.Security.Cryptography.X509Certificates;
-            public class TrustAllCertsPolicy : ICertificatePolicy {
-                public bool CheckValidationResult(
-                    ServicePoint srvPoint, X509Certificate certificate,
-                    WebRequest request, int certificateProblem) {
-                    return true;
-                }
-            }
-"@
-        [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
-    }
-
+    [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+    
     # Force TLS 1.2
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
