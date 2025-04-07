@@ -1,0 +1,74 @@
+function Get-F5AuthToken {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$BIGIPHost,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$Username,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$Password,
+        
+        [string]$LoginProviderName = "tmos"
+    )
+
+    # Ignore SSL certificate validation
+    if (-not ([System.Management.Automation.PSTypeName]'TrustAllCertsPolicy').Type) {
+        Add-Type -TypeDefinition @"
+            using System.Net;
+            using System.Security.Cryptography.X509Certificates;
+            public class TrustAllCertsPolicy : ICertificatePolicy {
+                public bool CheckValidationResult(
+                    ServicePoint srvPoint, X509Certificate certificate,
+                    WebRequest request, int certificateProblem) {
+                    return true;
+                }
+            }
+"@
+        [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+    }
+
+    # Force TLS 1.2
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+    # Create login body
+    $body = @{
+        username = $Username
+        password = $Password
+        loginProviderName = $LoginProviderName
+    } | ConvertTo-Json
+
+    # Set headers
+    $headers = @{
+        "Content-Type" = "application/json"
+    }
+
+    # Build URI
+    $uri = "https://$BIGIPHost/mgmt/shared/authn/login"
+
+    try {
+        # Make the request
+        $response = Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -Body $body -ErrorAction Stop
+        
+        # Extract token
+        $token = $response.token.token
+        
+        # Return token information
+        return @{
+            Token = $token
+            ExpiresIn = $response.token.timeout
+            ExpirationTime = (Get-Date).AddSeconds($response.token.timeout).ToString("yyyy-MM-dd HH:mm:ss")
+        }
+    }
+    catch {
+        Write-Error "Failed to get F5 authentication token: $_"
+        return $null
+    }
+}
+
+# Example usage:
+# $tokenInfo = Get-F5AuthToken -BIGIPHost "192.168.1.1" -Username "admin" -Password "password"
+# $token = $tokenInfo.Token
+# Write-Host "Token: $token"
+# Write-Host "Expires in: $($tokenInfo.ExpiresIn) seconds"
+# Write-Host "Expiration time: $($tokenInfo.ExpirationTime)"
