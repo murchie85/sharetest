@@ -1,3 +1,11 @@
+
+
+protected internal virtual IF5Client CreateF5Client(CertificateStore store, string user, string pass, bool ssl, bool ignoreSsl, bool useToken, IEnumerable<PreviousInventoryItem> inventory, string cyberarkUser = null, string cyberarkPass = null, string inventoryType = null, string uploadedCerts = null, string env = null);
+
+
+
+
+
 // semi factory approach
 protected virtual F5Client CreateF5Client(CertificateStore store, string user, string pass, bool ssl, bool ignoreSsl, bool useToken, IEnumerable<PreviousInventoryItem> inventory, string cyberarkUser = null, string cyberarkPass = null, string inventoryType = null, string uploadedCerts = null, string env = null)
 {
@@ -84,11 +92,12 @@ namespace Keyfactor.Extensions.Orchestrator.F5Orchestrator.Tests.SSLProfile
         {
             _mockClient = mockClient;
         }
-        
-        protected override IF5Client CreateF5Client(CertificateStore store, string user, string pass, bool ssl, bool ignoreSsl, bool useToken, IEnumerable<PreviousInventoryItem> inventory, string cyberarkUser = null, string cyberarkPass = null, string inventoryType = null, string uploadedCerts = null, string env = null)
+
+        protected override IF5Client CreateF5Client(CertificateStore store, string user, string pass, bool ssl, string pfxPassword, bool ignoreSsl, bool useToken, IEnumerable<PreviousInventoryItem> inventory, string cyberarkUser = null, string cyberarkPass = null, string inventoryType = null, string uploadedCerts = null, string env = null)
         {
             return _mockClient;
         }
+        
         
         public InventoryJobConfiguration GetJobConfig()
         {
