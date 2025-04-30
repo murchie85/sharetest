@@ -28,3 +28,13 @@ public class TestableInventory : Inventory
         return base.JobConfig;
     }
 }
+
+
+
+namespace Keyfactor.Extensions.Orchestrator.F5Orchestrator
+{
+    public interface IF5Client
+    {
+        List<CurrentInventoryItem> GetSSLProfiles(int pageSize);
+    }
+}
