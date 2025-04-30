@@ -3,8 +3,16 @@
 protected internal virtual IF5Client CreateF5Client(CertificateStore store, string user, string pass, bool ssl, bool ignoreSsl, bool useToken, IEnumerable<PreviousInventoryItem> inventory, string cyberarkUser = null, string cyberarkPass = null, string inventoryType = null, string uploadedCerts = null, string env = null);
 
 
-
-
+protected internal virtual IF5Client CreateF5Client(CertificateStore store, string user, 
+    string pass, bool ssl, string pfxPassword, bool ignoreSsl, 
+    bool useToken, IEnumerable<PreviousInventoryItem> inventory, 
+    string cyberarkUser = null, string cyberarkPass = null, string inventoryType = null, 
+    string uploadedCerts = null, string env = null)
+{
+    return new F5Client(store, user, pass, ssl, pfxPassword, ignoreSsl, useToken, inventory, 
+        cyberarkUser, cyberarkPass, inventoryType, uploadedCerts, env) 
+        { F5Version = base.F5Version };
+}
 
 // semi factory approach
 protected virtual F5Client CreateF5Client(CertificateStore store, string user, string pass, bool ssl, bool ignoreSsl, bool useToken, IEnumerable<PreviousInventoryItem> inventory, string cyberarkUser = null, string cyberarkPass = null, string inventoryType = null, string uploadedCerts = null, string env = null)
