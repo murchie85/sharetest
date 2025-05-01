@@ -1,4 +1,24 @@
+protected internal virtual IF5Client GetTestableF5Client()
+{
+    return new F5Client(config.CertificateStoreDetails, ServerUserName, ServerPassword, config.UseSSL, null, 
+        IgnoreSSLWarning, UseTokenAuth, config.LastInventory, cyberarkUsername, cyberarkPassword, 
+        InventoryType, UploadedCerts, Env_Plugin) { F5Version = base.F5Version };
+}
 
+
+
+protected internal override IF5Client GetTestableF5Client()
+{
+    return _mockClient;
+}
+
+
+IF5Client f5 = GetTestableF5Client();
+
+
+
+
+---
 
 protected internal virtual IF5Client CreateF5Client(CertificateStore store, string user, string pass, bool ssl, bool ignoreSsl, bool useToken, IEnumerable<PreviousInventoryItem> inventory, string cyberarkUser = null, string cyberarkPass = null, string inventoryType = null, string uploadedCerts = null, string env = null);
 
