@@ -1,13 +1,13 @@
 LogHandlerCommon.Info(logger, config.CertificateStoreDetails, 
     $"DIRECT: Creating F5Client with params: " +
     $"Store={config.CertificateStoreDetails?.StorePath}, " +
-    $"Username={ServerUserName?.Length}chars, " +
-    $"Password={ServerPassword != null ? "set" : "null"}, " +
+    $"Username={ServerUserName}, " +
+    $"Password={(ServerPassword != null ? "set" : "null")}, " +
     $"UseSSL={config.UseSSL}, " +
     $"PfxPwd={null}, " +
     $"IgnoreSSL={IgnoreSSLWarning}, " +
     $"UseToken={UseTokenAuth}, " +
-    $"Inventory={config.LastInventory?.Count() ?? 0}items, " +
+    $"Inventory Count={(config.LastInventory != null ? "has items" : "null")}, " +
     $"CybArkUser={cyberarkUsername}, " +
     $"CybArkPass={(cyberarkPassword != null ? "set" : "null")}, " +
     $"InvType={InventoryType}, " +
@@ -15,26 +15,23 @@ LogHandlerCommon.Info(logger, config.CertificateStoreDetails,
     $"Env={Env_Plugin}, " +
     $"F5Version={base.F5Version}");
 
-
-// In GetTestableF5Client before returning
+// For method-based F5Client creation
 LogHandlerCommon.Info(logger, config.CertificateStoreDetails, 
     $"METHOD: Creating F5Client with params: " +
     $"Store={config.CertificateStoreDetails?.StorePath}, " +
-    $"Username={ServerUserName?.Length}chars, " +
-    $"Password={ServerPassword != null ? "set" : "null"}, " +
+    $"Username={ServerUserName}, " +
+    $"Password={(ServerPassword != null ? "set" : "null")}, " +
     $"UseSSL={config.UseSSL}, " +
-    $"PfxPwd={null}, " +
+    $"PfxPwd=null, " +
     $"IgnoreSSL={IgnoreSSLWarning}, " +
     $"UseToken={UseTokenAuth}, " +
-    $"Inventory={config.LastInventory?.Count() ?? 0}items, " +
+    $"Inventory={(config.LastInventory != null ? "has items" : "null")}, " +
     $"CybArkUser={cyberarkUsername}, " +
     $"CybArkPass={(cyberarkPassword != null ? "set" : "null")}, " +
     $"InvType={InventoryType}, " +
     $"UploadedCerts={UploadedCerts}, " +
     $"Env={Env_Plugin}, " +
     $"F5Version={base.F5Version}");
-
-
 protected internal virtual F5Client GetTestableF5Client(InventoryJobConfiguration config, string cyberarkUsername, string cyberarkPassword, 
     string InventoryType, string UploadedCerts, string Env_Plugin)
 {
