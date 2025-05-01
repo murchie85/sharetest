@@ -1,3 +1,39 @@
+protected internal virtual F5Client GetTestableF5Client(InventoryJobConfiguration config, string cyberarkUsername, string cyberarkPassword, 
+    string InventoryType, string UploadedCerts, string Env_Plugin)
+{
+    return new F5Client(config.CertificateStoreDetails, ServerUserName, ServerPassword, config.UseSSL, null,
+        IgnoreSSLWarning, UseTokenAuth, config.LastInventory, cyberarkUsername, cyberarkPassword,
+        InventoryType, UploadedCerts, Env_Plugin) { F5Version = base.F5Version };
+}
+
+F5Client f5 = GetTestableF5Client(config, cyberarkUsername, cyberarkPassword, InventoryType, UploadedCerts, Env_Plugin);
+
+
+
+public class TestableInventory : SSLProfile.Inventory
+{
+    private readonly F5Client _mockClient;
+    
+    public TestableInventory(IPAMSecretResolver resolver, F5Client mockClient) : base(resolver)
+    {
+        _mockClient = mockClient;
+    }
+    
+    protected internal override F5Client GetTestableF5Client(InventoryJobConfiguration config, string cyberarkUsername, string cyberarkPassword, 
+        string InventoryType, string UploadedCerts, string Env_Plugin)
+    {
+        return _mockClient;
+    }
+    
+    public InventoryJobConfiguration GetJobConfig()
+    {
+        return base.JobConfig;
+    }
+}
+
+
+/// all failed belwo 
+-----
 protected internal virtual IF5Client GetTestableF5Client()
 {
     return new F5Client(config.CertificateStoreDetails, ServerUserName, ServerPassword, config.UseSSL, null, 
