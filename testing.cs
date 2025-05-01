@@ -1,3 +1,183 @@
+using System;
+using System.Collections.Generic;
+using Moq;
+using NUnit.Framework;
+using Keyfactor.Orchestrators.Extensions;
+using Keyfactor.Orchestrators.Extensions.Interfaces;
+using Keyfactor.Orchestrators.Common.Enums;
+
+namespace Keyfactor.Extensions.Orchestrator.F5Orchestrator.Tests.SSLProfile
+{
+    [TestFixture]
+    public class ManagementTests
+    {
+        private Mock<IPAMSecretResolver> _mockResolver;
+        private Mock<F5Client> _mockF5Client;
+        
+        [SetUp]
+        public void Setup()
+        {
+            _mockResolver = new Mock<IPAMSecretResolver>();
+            _mockF5Client = new Mock<F5Client>(MockBehavior.Loose, 
+                It.IsAny<CertificateStore>(), It.IsAny<string>(), It.IsAny<string>(), 
+                It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<bool>(), 
+                It.IsAny<bool>(), It.IsAny<IEnumerable<PreviousInventoryItem>>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>());
+        }
+        
+        [Test]
+        public void ProcessJob_SetsCredentials()
+        {
+            // Arrange
+            var config = new ManagementJobConfiguration 
+            { 
+                CertificateStoreDetails = new CertificateStore(),
+                ServerUsername = "testUsername",
+                ServerPassword = "testPassword",
+                JobCertificate = new JobCertificate { Alias = "testCert" },
+                OperationType = CertStoreOperationType.Add,
+                JobHistoryId = "test123"
+            };
+
+            // Create properties JSON with CyberArk credentials
+            config.CertificateStoreDetails.Properties = @"{
+                ""cyberarkUsername"": ""cyberTestUser"",
+                ""cyberarkPassword"": ""cyberTestPass"",
+                ""InventoryType"": ""UPLOADED_ONLY"",
+                ""Env"": ""prod""
+            }";
+
+            // Configure resolver to return the input value (no PAM resolution in test)
+            _mockResolver.Setup(r => r.Resolve(It.IsAny<string>()))
+                .Returns<string>(s => s);
+            
+            var testable = new TestableManagement(_mockResolver.Object, _mockF5Client.Object);
+            
+            // Act
+            testable.ProcessJob(config);
+            
+            // Assert
+            var credentials = testable.GetCredentials();
+            Assert.IsNotNull(credentials);
+            Assert.AreEqual("testUsername", credentials.ServerUsername);
+            Assert.AreEqual("testPassword", credentials.ServerPassword);
+            Assert.AreEqual("cyberTestUser", credentials.CyberarkUsername);
+            Assert.AreEqual("cyberTestPass", credentials.CyberarkPassword);
+        }
+
+        [Test]
+        public void ProcessJob_WithAdd_CallsPerformAddJob()
+        {
+            // Arrange
+            var config = new ManagementJobConfiguration 
+            { 
+                CertificateStoreDetails = new CertificateStore(),
+                ServerUsername = "username",
+                ServerPassword = "password",
+                JobCertificate = new JobCertificate { Alias = "testCert" },
+                OperationType = CertStoreOperationType.Add,
+                JobHistoryId = "test123"
+            };
+
+            var testable = new TestableManagement(_mockResolver.Object, _mockF5Client.Object);
+            
+            // Act
+            testable.ProcessJob(config);
+            
+            // Assert
+            Assert.IsTrue(testable.AddJobCalled);
+            Assert.IsFalse(testable.RemoveJobCalled);
+        }
+
+        [Test]
+        public void ProcessJob_WithRemove_CallsPerformRemoveJob()
+        {
+            // Arrange
+            var config = new ManagementJobConfiguration 
+            { 
+                CertificateStoreDetails = new CertificateStore(),
+                ServerUsername = "username",
+                ServerPassword = "password",
+                JobCertificate = new JobCertificate { Alias = "testCert" },
+                OperationType = CertStoreOperationType.Remove,
+                JobHistoryId = "test123"
+            };
+
+            var testable = new TestableManagement(_mockResolver.Object, _mockF5Client.Object);
+            
+            // Act
+            testable.ProcessJob(config);
+            
+            // Assert
+            Assert.IsFalse(testable.AddJobCalled);
+            Assert.IsTrue(testable.RemoveJobCalled);
+        }
+    }
+    
+    public class TestableManagement : SSLProfile.Management
+    {
+        private readonly F5Client _mockClient;
+        public bool AddJobCalled { get; private set; }
+        public bool RemoveJobCalled { get; private set; }
+        
+        public TestableManagement(IPAMSecretResolver resolver, F5Client mockClient) : base(resolver)
+        {
+            _mockClient = mockClient;
+        }
+        
+        internal virtual F5Client GetTestableF5Client(ManagementJobConfiguration config)
+        {
+            return _mockClient;
+        }
+
+        // Override to expose protected properties for testing
+        public class Credentials
+        {
+            public string ServerUsername { get; set; }
+            public string ServerPassword { get; set; }
+            public string CyberarkUsername { get; set; }
+            public string CyberarkPassword { get; set; }
+        }
+
+        public Credentials GetCredentials()
+        {
+            return new Credentials
+            {
+                ServerUsername = ServerUserName,
+                ServerPassword = ServerPassword,
+                CyberarkUsername = GetPrivateField<string>("cyberarkUsername"),
+                CyberarkPassword = GetPrivateField<string>("cyberarkPassword")
+            };
+        }
+
+        private T GetPrivateField<T>(string fieldName)
+        {
+            var field = GetType().BaseType.GetField(fieldName, 
+                System.Reflection.BindingFlags.Instance | 
+                System.Reflection.BindingFlags.NonPublic);
+            return (T)field.GetValue(this);
+        }
+
+        // Override methods to track calls
+        protected new void PerformAddJob(F5Client f5, string certStoreID)
+        {
+            AddJobCalled = true;
+            // Don't call base to avoid real implementation
+        }
+
+        protected new void PerformRemovalJob(F5Client f5)
+        {
+            RemoveJobCalled = true;
+            // Don't call base to avoid real implementation
+        }
+    }
+}
+
+
+
+
+
 LogHandlerCommon.Info(logger, config.CertificateStoreDetails, 
     $"DIRECT: Creating F5Client with params: " +
     $"Store={config.CertificateStoreDetails?.StorePath}, " +
@@ -31,7 +211,7 @@ LogHandlerCommon.Info(logger, config.CertificateStoreDetails,
     $"InvType={InventoryType}, " +
     $"UploadedCerts={UploadedCerts}, " +
     $"Env={Env_Plugin}, " +
-    $"F5Version={base.F5Version}");
+    $"F5Version={base.F5Version}");                 
 protected internal virtual F5Client GetTestableF5Client(InventoryJobConfiguration config, string cyberarkUsername, string cyberarkPassword, 
     string InventoryType, string UploadedCerts, string Env_Plugin)
 {
