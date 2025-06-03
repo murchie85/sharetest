@@ -1,3 +1,4 @@
+```ps
 # Get directories based on their most recent file activity
 function recent-files-dirs($count = 5, $path = ".", $depth = 3) {
     Write-Host "Scanning for recent file activity..." -ForegroundColor Yellow
@@ -26,3 +27,4 @@ function recent-files-dirs($count = 5, $path = ".", $depth = 3) {
         } |
         Format-Table -AutoSize
 }
+```
